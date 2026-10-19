@@ -1,4 +1,6 @@
 
+from decimal import Decimal
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +23,10 @@ app = FastAPI(
 )
 
 
+# --------------------------------------------------
+# HEALTH
+# --------------------------------------------------
+
 @app.get("/health")
 def health_check():
     return {
@@ -29,6 +35,10 @@ def health_check():
         "version": "0.2.0",
     }
 
+
+# --------------------------------------------------
+# PRODUCTS
+# --------------------------------------------------
 
 @app.post(
     "/products",
@@ -77,6 +87,11 @@ def get_product(
 
     return product
 
+
+# --------------------------------------------------
+# ORDERS - CREATE
+# --------------------------------------------------
+
 @app.post(
     "/orders",
     response_model=OrderRead,
@@ -99,10 +114,9 @@ def create_order(
 
     order_items = []
     response_items = []
-    total = 0
+    total = Decimal("0.00")
 
     try:
-        # Create the order header.
         new_order = Order(status="pending")
         db.add(new_order)
         db.flush()
@@ -153,3 +167,77 @@ def create_order(
     except Exception:
         db.rollback()
         raise
+
+
+# --------------------------------------------------
+# ORDERS - RESPONSE HELPER
+# --------------------------------------------------
+
+def build_order_response(order: Order, db: Session) -> dict:
+    statement = (
+        select(OrderItem)
+        .where(OrderItem.order_id == order.id)
+        .order_by(OrderItem.id)
+    )
+
+    order_items = db.scalars(statement).all()
+
+    response_items = []
+    total = Decimal("0.00")
+
+    for item in order_items:
+        subtotal = item.unit_price * item.quantity
+        total += subtotal
+
+        response_items.append(
+            {
+                "product_id": item.product_id,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "subtotal": subtotal,
+            }
+        )
+
+    return {
+        "id": order.id,
+        "status": order.status,
+        "created_at": order.created_at,
+        "total": total,
+        "items": response_items,
+    }
+
+
+# --------------------------------------------------
+# ORDERS - LIST
+# --------------------------------------------------
+
+@app.get("/orders", response_model=list[OrderRead])
+def list_orders(db: Session = Depends(get_db)):
+    statement = select(Order).order_by(Order.id)
+
+    orders = db.scalars(statement).all()
+
+    return [
+        build_order_response(order, db)
+        for order in orders
+    ]
+
+
+# --------------------------------------------------
+# ORDERS - GET BY ID
+# --------------------------------------------------
+
+@app.get("/orders/{order_id}", response_model=OrderRead)
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+):
+    order = db.get(Order, order_id)
+
+    if order is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found.",
+        )
+
+    return build_order_response(order, db)
