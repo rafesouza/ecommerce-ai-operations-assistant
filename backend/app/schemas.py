@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,3 +16,26 @@ class ProductRead(ProductCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
+class OrderItemCreate(BaseModel):
+    product_id: int = Field(gt=0)
+    quantity: int = Field(gt=0)
+
+
+class OrderCreate(BaseModel):
+    items: list[OrderItemCreate] = Field(min_length=1)
+
+
+class OrderItemRead(BaseModel):
+    product_id: int
+    quantity: int
+    unit_price: Decimal
+    subtotal: Decimal
+
+
+class OrderRead(BaseModel):
+    id: int
+    status: str
+    created_at: datetime
+    total: Decimal
+    items: list[OrderItemRead]

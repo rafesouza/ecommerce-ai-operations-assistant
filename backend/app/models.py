@@ -4,7 +4,9 @@ from decimal import Decimal
 from sqlalchemy import Integer, Numeric, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from datetime import datetime, timezone
 
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 class Base(DeclarativeBase):
     pass
 
@@ -37,4 +39,52 @@ class Product(Base):
         Integer,
         nullable=False,
         default=0,
+    )
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id"),
+        nullable=False,
+    )
+
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"),
+        nullable=False,
+    )
+
+    quantity: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    unit_price: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
     )
