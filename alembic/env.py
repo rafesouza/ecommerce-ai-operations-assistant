@@ -5,7 +5,8 @@ from alembic import context
 from sqlalchemy import pool
 
 from backend.app.database import engine
-from backend.app.models import Base, Product
+
+from backend.app.models import Base, Product, Order, OrderItem
 
 config = context.config
 
