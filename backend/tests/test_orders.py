@@ -488,3 +488,235 @@ def test_order_rolls_back_stock_when_one_product_is_unavailable(client):
 
     assert order_count == 0
     assert item_count == 0
+
+def test_confirm_pending_order(client):
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "CONFIRM-ORDER-001",
+            "name": "Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 2,
+                }
+            ]
+        },
+    )
+    assert order_response.status_code == 201
+
+    order_id = order_response.json()["id"]
+    assert order_response.json()["status"] == "pending"
+
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "confirmed"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "confirmed"
+
+    saved_order = client.get(f"/orders/{order_id}")
+    assert saved_order.status_code == 200
+    assert saved_order.json()["status"] == "confirmed"
+
+def test_cannot_confirm_order_twice(client):
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "CONFIRM-TWICE-001",
+            "name": "Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 2,
+                }
+            ]
+        },
+    )
+    assert order_response.status_code == 201
+    order_id = order_response.json()["id"]
+
+    first_confirmation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "confirmed"},
+    )
+    assert first_confirmation.status_code == 200
+
+    second_confirmation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "confirmed"},
+    )
+    assert second_confirmation.status_code == 409
+
+    saved_order = client.get(f"/orders/{order_id}")
+    assert saved_order.status_code == 200
+    assert saved_order.json()["status"] == "confirmed"
+
+def test_cancel_pending_order_restores_stock(client):
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "CANCEL-ORDER-001",
+            "name": "Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 3,
+                }
+            ]
+        },
+    )
+    assert order_response.status_code == 201
+    order_id = order_response.json()["id"]
+
+    stock_after_order = client.get(f"/products/{product_id}")
+    assert stock_after_order.json()["stock_quantity"] == 7
+
+    cancellation_response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+    )
+
+    assert cancellation_response.status_code == 200
+    assert cancellation_response.json()["status"] == "cancelled"
+
+    stock_after_cancellation = client.get(f"/products/{product_id}")
+    assert stock_after_cancellation.status_code == 200
+    assert stock_after_cancellation.json()["stock_quantity"] == 10
+
+    saved_order = client.get(f"/orders/{order_id}")
+    assert saved_order.json()["status"] == "cancelled"
+
+def test_cannot_cancel_order_twice(client):
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "CANCEL-TWICE-001",
+            "name": "Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 3,
+                }
+            ]
+        },
+    )
+    assert order_response.status_code == 201
+    order_id = order_response.json()["id"]
+
+    first_cancellation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+    )
+    assert first_cancellation.status_code == 200
+
+    second_cancellation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+    )
+    assert second_cancellation.status_code == 409
+
+    product_after_cancellations = client.get(
+        f"/products/{product_id}"
+    )
+    assert product_after_cancellations.status_code == 200
+    assert product_after_cancellations.json()["stock_quantity"] == 10
+
+    saved_order = client.get(f"/orders/{order_id}")
+    assert saved_order.json()["status"] == "cancelled"
+
+def test_cannot_cancel_confirmed_order(client):
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "CANCEL-CONFIRMED-001",
+            "name": "Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 3,
+                }
+            ]
+        },
+    )
+    assert order_response.status_code == 201
+    order_id = order_response.json()["id"]
+
+    confirmation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "confirmed"},
+    )
+    assert confirmation.status_code == 200
+
+    cancellation = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+    )
+    assert cancellation.status_code == 409
+
+    saved_order = client.get(f"/orders/{order_id}")
+    assert saved_order.json()["status"] == "confirmed"
+
+    saved_product = client.get(f"/products/{product_id}")
+    assert saved_product.status_code == 200
+    assert saved_product.json()["stock_quantity"] == 7
+
+def test_cannot_update_status_of_nonexistent_order(client):
+    response = client.patch(
+        "/orders/999999/status",
+        json={"status": "cancelled"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Order not found"

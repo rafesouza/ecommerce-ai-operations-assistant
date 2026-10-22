@@ -11,6 +11,7 @@ from backend.app.models import Order, OrderItem, Product
 from backend.app.schemas import (
     OrderCreate,
     OrderRead,
+    OrderStatusUpdate,
     ProductCreate,
     ProductRead,
 )
@@ -116,7 +117,7 @@ def create_order(
     total = Decimal("0.00")
 
     try:
-        # Lock products in a consistent order to reduce deadlocks.
+        # Lock products in a consistent order.
         statement = (
             select(Product)
             .where(Product.id.in_(product_ids))
@@ -131,7 +132,7 @@ def create_order(
             for product in locked_products
         }
 
-        # Check all products and stock before creating the order.
+        # Check products and inventory before creating the order.
         for item in order_data.items:
             product = products_by_id.get(item.product_id)
 
@@ -147,7 +148,6 @@ def create_order(
                     detail=f"Insufficient stock for product {product.id}.",
                 )
 
-        # Create the order after validation succeeds.
         new_order = Order(status="pending")
         db.add(new_order)
         db.flush()
@@ -161,7 +161,7 @@ def create_order(
             subtotal = unit_price * item.quantity
             total += subtotal
 
-            # Deduct the purchased quantity.
+            # Deduct purchased quantity.
             product.stock_quantity -= item.quantity
 
             order_items.append(
@@ -271,3 +271,82 @@ def get_order(
         )
 
     return build_order_response(order, db)
+
+
+# --------------------------------------------------
+# ORDERS - STATUS MANAGEMENT
+# --------------------------------------------------
+
+@app.patch("/orders/{order_id}/status", response_model=OrderRead)
+def update_order_status(
+    order_id: int,
+    payload: OrderStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    try:
+        # Lock the order to prevent simultaneous status changes.
+        order = db.scalar(
+            select(Order)
+            .where(Order.id == order_id)
+            .with_for_update()
+        )
+
+        if order is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Order not found",
+            )
+
+        if order.status != "pending":
+            raise HTTPException(
+                status_code=409,
+                detail="Only pending orders can change status",
+            )
+
+        if payload.status == "cancelled":
+            # Retrieve items belonging to the order.
+            order_items = db.scalars(
+                select(OrderItem)
+                .where(OrderItem.order_id == order.id)
+                .order_by(OrderItem.product_id)
+            ).all()
+
+            # Lock all affected products before modifying stock.
+            product_ids = [
+                item.product_id for item in order_items
+            ]
+
+            locked_products = db.scalars(
+                select(Product)
+                .where(Product.id.in_(product_ids))
+                .order_by(Product.id)
+                .with_for_update()
+            ).all()
+
+            products_by_id = {
+                product.id: product
+                for product in locked_products
+            }
+
+            # Restore inventory within the same transaction.
+            for item in order_items:
+                product = products_by_id.get(item.product_id)
+
+                if product is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Product no longer exists",
+                    )
+
+                product.stock_quantity += item.quantity
+
+        order.status = payload.status
+
+        db.commit()
+        db.refresh(order)
+
+        return build_order_response(order, db)
+
+    except Exception:
+        db.rollback()
+        raise
