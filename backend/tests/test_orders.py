@@ -338,3 +338,153 @@ def test_list_orders(client):
     assert len(orders[0]["items"]) == 1
     assert orders[0]["items"][0]["product_id"] == product_id
     assert orders[0]["items"][0]["quantity"] == 2
+
+def test_create_order_decreases_stock(client):
+    # Create a product with 10 units in stock.
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "STOCK-001",
+            "name": "Inventory Test Backpack",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    # Order 3 units of the product.
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 3,
+                }
+            ]
+        },
+    )
+
+    assert order_response.status_code == 201
+
+    # Check the remaining stock.
+    product_after_order = client.get(
+        f"/products/{product_id}"
+    )
+
+    assert product_after_order.status_code == 200
+    assert (
+        product_after_order.json()["stock_quantity"] == 7
+    )
+
+def test_create_order_with_insufficient_stock(client):
+    # Create a product with only 2 units available.
+    product_response = client.post(
+        "/products",
+        json={
+            "sku": "LOW-STOCK-001",
+            "name": "Low Stock Backpack",
+            "price": "79.90",
+            "stock_quantity": 2,
+        },
+    )
+
+    assert product_response.status_code == 201
+    product_id = product_response.json()["id"]
+
+    # Attempt to buy 5 units.
+    order_response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 5,
+                }
+            ]
+        },
+    )
+
+    # The API must reject this order.
+    assert order_response.status_code == 409
+    assert order_response.json()["detail"] == (
+        f"Insufficient stock for product {product_id}."
+    )
+
+    # The available stock must remain unchanged.
+    product_after_order = client.get(
+        f"/products/{product_id}"
+    )
+
+    assert product_after_order.status_code == 200
+    assert product_after_order.json()["stock_quantity"] == 2
+
+    # No invalid order should be saved.
+    with client.testing_session_factory() as session:
+        order_count = session.scalar(
+            select(func.count()).select_from(Order)
+        )
+
+    assert order_count == 0
+
+def test_order_rolls_back_stock_when_one_product_is_unavailable(client):
+    # Create two products with different stock levels.
+    first_product = client.post(
+        "/products",
+        json={
+            "sku": "ATOMIC-001",
+            "name": "Backpack A",
+            "price": "79.90",
+            "stock_quantity": 10,
+        },
+    )
+
+    second_product = client.post(
+        "/products",
+        json={
+            "sku": "ATOMIC-002",
+            "name": "Backpack B",
+            "price": "49.90",
+            "stock_quantity": 2,
+        },
+    )
+
+    assert first_product.status_code == 201
+    assert second_product.status_code == 201
+
+    first_id = first_product.json()["id"]
+    second_id = second_product.json()["id"]
+
+    # The first item is valid, but the second exceeds stock.
+    response = client.post(
+        "/orders",
+        json={
+            "items": [
+                {"product_id": first_id, "quantity": 3},
+                {"product_id": second_id, "quantity": 5},
+            ]
+        },
+    )
+
+    assert response.status_code == 409
+
+    # Both stock quantities must remain unchanged.
+    first_stock = client.get(f"/products/{first_id}")
+    second_stock = client.get(f"/products/{second_id}")
+
+    assert first_stock.json()["stock_quantity"] == 10
+    assert second_stock.json()["stock_quantity"] == 2
+
+    # No incomplete order should remain in the database.
+    with client.testing_session_factory() as session:
+        order_count = session.scalar(
+            select(func.count()).select_from(Order)
+        )
+        item_count = session.scalar(
+            select(func.count()).select_from(OrderItem)
+        )
+
+    assert order_count == 0
+    assert item_count == 0
