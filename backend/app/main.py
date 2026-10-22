@@ -89,7 +89,7 @@ def get_product(
 
 
 # --------------------------------------------------
-# ORDERS - CREATE
+# ORDERS - CREATE WITH INVENTORY CONTROL
 # --------------------------------------------------
 
 @app.post(
@@ -105,24 +105,35 @@ def create_order(
         item.product_id for item in order_data.items
     ]
 
-    # Prevent duplicate products within one order.
+    # Reject duplicate products in the same order.
     if len(product_ids) != len(set(product_ids)):
         raise HTTPException(
             status_code=422,
             detail="Duplicate products are not allowed.",
         )
 
-    order_items = []
     response_items = []
     total = Decimal("0.00")
 
     try:
-        new_order = Order(status="pending")
-        db.add(new_order)
-        db.flush()
+        # Lock products in a consistent order to reduce deadlocks.
+        statement = (
+            select(Product)
+            .where(Product.id.in_(product_ids))
+            .order_by(Product.id)
+            .with_for_update()
+        )
 
+        locked_products = db.scalars(statement).all()
+
+        products_by_id = {
+            product.id: product
+            for product in locked_products
+        }
+
+        # Check all products and stock before creating the order.
         for item in order_data.items:
-            product = db.get(Product, item.product_id)
+            product = products_by_id.get(item.product_id)
 
             if product is None:
                 raise HTTPException(
@@ -130,9 +141,28 @@ def create_order(
                     detail=f"Product {item.product_id} not found.",
                 )
 
+            if product.stock_quantity < item.quantity:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Insufficient stock for product {product.id}.",
+                )
+
+        # Create the order after validation succeeds.
+        new_order = Order(status="pending")
+        db.add(new_order)
+        db.flush()
+
+        order_items = []
+
+        for item in order_data.items:
+            product = products_by_id[item.product_id]
+
             unit_price = product.price
             subtotal = unit_price * item.quantity
             total += subtotal
+
+            # Deduct the purchased quantity.
+            product.stock_quantity -= item.quantity
 
             order_items.append(
                 OrderItem(
