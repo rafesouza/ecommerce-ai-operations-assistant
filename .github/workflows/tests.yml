@@ -54,26 +54,27 @@ jobs:
             -U ecommerce_user -d ecommerce_ai \
             -c "CREATE DATABASE ecommerce_ai_test;"
 
+      -
       - name: Create test tables
         run: |
-          python - <<'PY'
+          python -c "
           import os
           from sqlalchemy import create_engine
           from sqlalchemy.engine import URL
           from backend.app.models import Base
-                    url = URL.create(
-              "postgresql+psycopg",
-              username=os.environ["POSTGRES_USER"],
-              password=os.environ["POSTGRES_PASSWORD"],
-              host="127.0.0.1",
+
+          url = URL.create(
+              'postgresql+psycopg',
+              username=os.environ['POSTGRES_USER'],
+              password=os.environ['POSTGRES_PASSWORD'],
+              host='127.0.0.1',
               port=5433,
-              database="ecommerce_ai_test",
+              database='ecommerce_ai_test',
           )
 
           engine = create_engine(url)
           Base.metadata.create_all(bind=engine)
           engine.dispose()
-          PY
-
+          "
       - name: Run automated tests
         run: python -m pytest -v -p no:cacheprovider
