@@ -56,7 +56,7 @@ jobs:
 
       -
       - name: Create test tables
-        run: |
+        run: python -m backend.setup_test_db
           python -c "
           import os
           from sqlalchemy import create_engine
