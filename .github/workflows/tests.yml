@@ -1,0 +1,80 @@
+
+name: Python Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ecommerce_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: ecommerce_ai
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ecommerce_user -d ecommerce_ai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_USER: ecommerce_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: ecommerce_ai
+      POSTGRES_PORT: "5433"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create PostgreSQL test database
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h 127.0.0.1 -p 5433 \
+            -U ecommerce_user -d ecommerce_ai \
+            -c "CREATE DATABASE ecommerce_ai_test;"
+
+      -
+      - name: Create test tables
+        run: |
+          python -c "
+          import os
+          from sqlalchemy import create_engine
+          from sqlalchemy.engine import URL
+          from backend.app.models import Base
+
+          url = URL.create(
+              'postgresql+psycopg',
+              username=os.environ['POSTGRES_USER'],
+              password=os.environ['POSTGRES_PASSWORD'],
+              host='127.0.0.1',
+              port=5433,
+              database='ecommerce_ai_test',
+          )
+
+          engine = create_engine(url)
+          Base.metadata.create_all(bind=engine)
+          engine.dispose()
+          "
+      - name: Run automated tests
+        run: python -m pytest -v -p no:cacheprovider
