@@ -2,7 +2,7 @@
 from decimal import Decimal
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -350,3 +350,63 @@ def update_order_status(
     except Exception:
         db.rollback()
         raise
+
+# --------------------------------------------------
+# ANALYTICS - SUMMARY
+# --------------------------------------------------
+
+
+
+
+
+@app.get("/analytics/summary")
+def get_analytics_summary(
+    db: Session = Depends(get_db),
+):
+    # Count all orders.
+    total_orders = db.scalar(
+        select(func.count()).select_from(Order)
+    )
+
+    # Count confirmed orders.
+    confirmed_orders = db.scalar(
+        select(func.count())
+        .select_from(Order)
+        .where(Order.status == "confirmed")
+    )
+
+    # Count cancelled orders.
+    cancelled_orders = db.scalar(
+        select(func.count())
+        .select_from(Order)
+        .where(Order.status == "cancelled")
+    )
+
+    # Calculate revenue from confirmed orders only.
+    confirmed_revenue = db.scalar(
+        select(
+            func.sum(
+                OrderItem.quantity * OrderItem.unit_price
+            )
+        )
+        .select_from(OrderItem)
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(Order.status == "confirmed")
+    )
+
+    # Count products with 5 or fewer units in stock.
+    low_stock_products = db.scalar(
+        select(func.count())
+        .select_from(Product)
+        .where(Product.stock_quantity <= 5)
+    )
+
+    return {
+        "total_orders": total_orders,
+        "confirmed_orders": confirmed_orders,
+        "cancelled_orders": cancelled_orders,
+        "confirmed_revenue": str(
+            confirmed_revenue or Decimal("0.00")
+        ),
+        "low_stock_products": low_stock_products,
+    }
