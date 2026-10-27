@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models import Order, OrderItem, Product
+from backend.app.models import Order, OrderItem, Product, StockMovement
 from backend.app.schemas import (
     OrderCreate,
     OrderRead,
@@ -163,6 +163,17 @@ def create_order(
 
             # Deduct purchased quantity.
             product.stock_quantity -= item.quantity
+
+            # Record inventory movement for this sale.
+            db.add(
+                StockMovement(
+                    product_id=product.id,
+                    order_id=new_order.id,
+                    movement_type="sale",
+                    quantity=-item.quantity,
+                )
+            )
+
 
             order_items.append(
                 OrderItem(
@@ -339,6 +350,17 @@ def update_order_status(
                     )
 
                 product.stock_quantity += item.quantity
+
+                # Record inventory restoration caused by cancellation.
+                db.add(
+                    StockMovement(
+                        product_id=product.id,
+                        order_id=order.id,
+                        movement_type="cancellation",
+                        quantity=item.quantity,
+                    )
+                )
+
 
         order.status = payload.status
 

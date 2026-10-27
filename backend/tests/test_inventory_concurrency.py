@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.app.database import get_db
 from backend.app.main import app
-from backend.app.models import Order, OrderItem, Product
+from backend.app.models import Order, OrderItem, Product, StockMovement
 
 
 load_dotenv()
@@ -142,6 +142,11 @@ def test_simultaneous_orders_do_not_oversell():
             ).all()
 
             if order_ids:
+
+                session.query(StockMovement).filter(
+                    StockMovement.order_id.in_(order_ids)
+                ).delete(synchronize_session=False)
+
                 session.query(OrderItem).filter(
                     OrderItem.order_id.in_(order_ids)
                 ).delete(synchronize_session=False)
@@ -269,6 +274,11 @@ def test_simultaneous_purchase_and_cancellation():
             ).all()
 
             if order_ids:
+
+                session.query(StockMovement).filter(
+                    StockMovement.order_id.in_(order_ids)
+                ).delete(synchronize_session=False)
+
                 session.query(OrderItem).filter(
                     OrderItem.order_id.in_(order_ids)
                 ).delete(synchronize_session=False)
@@ -358,7 +368,12 @@ def test_simultaneous_orders_with_reversed_product_order():
                     .where(OrderItem.product_id.in_(product_ids))
                 ).all()
 
+
                 if order_ids:
+                    session.query(StockMovement).filter(
+                        StockMovement.order_id.in_(order_ids)
+                    ).delete(synchronize_session=False)
+
                     session.query(OrderItem).filter(
                         OrderItem.order_id.in_(order_ids)
                     ).delete(synchronize_session=False)
@@ -366,7 +381,3 @@ def test_simultaneous_orders_with_reversed_product_order():
                     session.query(Order).filter(
                         Order.id.in_(order_ids)
                     ).delete(synchronize_session=False)
-
-                session.query(Product).filter(
-                    Product.id.in_(product_ids)
-                ).delete(synchronize_session=False)
