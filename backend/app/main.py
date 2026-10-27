@@ -410,3 +410,39 @@ def get_analytics_summary(
         ),
         "low_stock_products": low_stock_products,
     }
+
+# --------------------------------------------------
+# INVENTORY - STOCK ALERTS
+# --------------------------------------------------
+
+@app.get("/inventory/alerts")
+def get_inventory_alerts(
+    db: Session = Depends(get_db),
+):
+    # Find products with 5 or fewer units available.
+    statement = (
+        select(Product)
+        .where(Product.stock_quantity <= 5)
+        .order_by(Product.id)
+    )
+
+    products = db.scalars(statement).all()
+
+    alerts = []
+
+    for product in products:
+        if product.stock_quantity == 0:
+            alert_level = "out_of_stock"
+        else:
+            alert_level = "low_stock"
+
+        alerts.append(
+            {
+                "sku": product.sku,
+                "name": product.name,
+                "stock_quantity": product.stock_quantity,
+                "alert_level": alert_level,
+            }
+        )
+
+    return alerts
