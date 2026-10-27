@@ -88,3 +88,39 @@ class OrderItem(Base):
         Numeric(10, 2),
         nullable=False,
     )
+
+class StockMovement(Base):
+    __tablename__ = "stock_movements"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"),
+        nullable=False,
+        index=True,
+    )
+
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("orders.id"),
+        nullable=True,
+        index=True,
+    )
+
+    movement_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+    )
+
+    quantity: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
