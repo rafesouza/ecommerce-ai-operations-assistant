@@ -41,6 +41,20 @@ class Product(Base):
         default=0,
     )
 
+    lead_time_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=7,
+        server_default="7",
+    )
+
+    safety_stock: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=5,
+        server_default="5",
+    )
+
 class Order(Base):
     __tablename__ = "orders"
 

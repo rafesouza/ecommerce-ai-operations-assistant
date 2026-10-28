@@ -614,15 +614,17 @@ def get_inventory_coverage(
 # INVENTORY - REPLENISHMENT RECOMMENDATIONS
 # --------------------------------------------------
 
+
 @app.get("/inventory/replenishment")
 def get_inventory_replenishment(
     days: int = Query(default=30, ge=1, le=365),
-    lead_time_days: int = Query(default=7, ge=1, le=365),
-    safety_stock: int = Query(default=5, ge=0),
+    lead_time_days: int | None = Query(default=None, ge=1, le=365),
+    safety_stock: int | None = Query(default=None, ge=0),
     db: Session = Depends(get_db),
 ):
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
+    # Calculate confirmed sales within the selected period.
     confirmed_sales = (
         select(
             OrderItem.product_id.label("product_id"),
@@ -637,12 +639,15 @@ def get_inventory_replenishment(
         .subquery()
     )
 
+    # Include all products and their individual inventory settings.
     statement = (
         select(
             Product.id,
             Product.sku,
             Product.name,
             Product.stock_quantity,
+            Product.lead_time_days,
+            Product.safety_stock,
             func.coalesce(
                 confirmed_sales.c.units_sold, 0
             ).label("units_sold"),
@@ -661,13 +666,28 @@ def get_inventory_replenishment(
         units_sold = int(row.units_sold)
         average_daily_sales = units_sold / days
 
-        expected_demand = average_daily_sales * lead_time_days
+        # URL parameters override individual settings when provided.
+        effective_lead_time = (
+            lead_time_days
+            if lead_time_days is not None
+            else row.lead_time_days
+        )
+
+        effective_safety_stock = (
+            safety_stock
+            if safety_stock is not None
+            else row.safety_stock
+        )
+
+        expected_demand = (
+            average_daily_sales * effective_lead_time
+        )
 
         recommended_quantity = max(
             0,
             math.ceil(
                 expected_demand
-                + safety_stock
+                + effective_safety_stock
                 - row.stock_quantity
             ),
         )
@@ -682,8 +702,8 @@ def get_inventory_replenishment(
                 "average_daily_sales": round(
                     average_daily_sales, 2
                 ),
-                "lead_time_days": lead_time_days,
-                "safety_stock": safety_stock,
+                "lead_time_days": effective_lead_time,
+                "safety_stock": effective_safety_stock,
                 "recommended_quantity": recommended_quantity,
             }
         )
