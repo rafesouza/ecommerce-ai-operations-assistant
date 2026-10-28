@@ -1,6 +1,6 @@
 
 from decimal import Decimal
-
+import math
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -605,6 +605,86 @@ def get_inventory_coverage(
                     average_daily_sales, 2
                 ),
                 "days_remaining": days_remaining,
+            }
+        )
+
+    return results
+
+# --------------------------------------------------
+# INVENTORY - REPLENISHMENT RECOMMENDATIONS
+# --------------------------------------------------
+
+@app.get("/inventory/replenishment")
+def get_inventory_replenishment(
+    days: int = Query(default=30, ge=1, le=365),
+    lead_time_days: int = Query(default=7, ge=1, le=365),
+    safety_stock: int = Query(default=5, ge=0),
+    db: Session = Depends(get_db),
+):
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    confirmed_sales = (
+        select(
+            OrderItem.product_id.label("product_id"),
+            func.sum(OrderItem.quantity).label("units_sold"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(
+            Order.status == "confirmed",
+            Order.created_at >= start_date,
+        )
+        .group_by(OrderItem.product_id)
+        .subquery()
+    )
+
+    statement = (
+        select(
+            Product.id,
+            Product.sku,
+            Product.name,
+            Product.stock_quantity,
+            func.coalesce(
+                confirmed_sales.c.units_sold, 0
+            ).label("units_sold"),
+        )
+        .outerjoin(
+            confirmed_sales,
+            Product.id == confirmed_sales.c.product_id,
+        )
+        .order_by(Product.id)
+    )
+
+    rows = db.execute(statement).all()
+    results = []
+
+    for row in rows:
+        units_sold = int(row.units_sold)
+        average_daily_sales = units_sold / days
+
+        expected_demand = average_daily_sales * lead_time_days
+
+        recommended_quantity = max(
+            0,
+            math.ceil(
+                expected_demand
+                + safety_stock
+                - row.stock_quantity
+            ),
+        )
+
+        results.append(
+            {
+                "product_id": row.id,
+                "sku": row.sku,
+                "name": row.name,
+                "stock_quantity": row.stock_quantity,
+                "units_sold": units_sold,
+                "average_daily_sales": round(
+                    average_daily_sales, 2
+                ),
+                "lead_time_days": lead_time_days,
+                "safety_stock": safety_stock,
+                "recommended_quantity": recommended_quantity,
             }
         )
 
