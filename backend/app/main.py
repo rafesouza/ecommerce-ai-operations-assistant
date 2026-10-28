@@ -537,3 +537,75 @@ def get_inventory_velocity(
         )
 
     return results
+
+# --------------------------------------------------
+# INVENTORY - STOCK COVERAGE
+# --------------------------------------------------
+
+@app.get("/inventory/coverage")
+def get_inventory_coverage(
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    confirmed_sales = (
+        select(
+            OrderItem.product_id.label("product_id"),
+            func.sum(OrderItem.quantity).label("units_sold"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(
+            Order.status == "confirmed",
+            Order.created_at >= start_date,
+        )
+        .group_by(OrderItem.product_id)
+        .subquery()
+    )
+
+    statement = (
+        select(
+            Product.id,
+            Product.sku,
+            Product.name,
+            Product.stock_quantity,
+            func.coalesce(
+                confirmed_sales.c.units_sold, 0
+            ).label("units_sold"),
+        )
+        .outerjoin(
+            confirmed_sales,
+            Product.id == confirmed_sales.c.product_id,
+        )
+        .order_by(Product.id)
+    )
+
+    rows = db.execute(statement).all()
+    results = []
+
+    for row in rows:
+        units_sold = int(row.units_sold)
+        average_daily_sales = units_sold / days
+
+        if average_daily_sales > 0:
+            days_remaining = round(
+                row.stock_quantity / average_daily_sales, 2
+            )
+        else:
+            days_remaining = None
+
+        results.append(
+            {
+                "product_id": row.id,
+                "sku": row.sku,
+                "name": row.name,
+                "stock_quantity": row.stock_quantity,
+                "units_sold": units_sold,
+                "average_daily_sales": round(
+                    average_daily_sales, 2
+                ),
+                "days_remaining": days_remaining,
+            }
+        )
+
+    return results
