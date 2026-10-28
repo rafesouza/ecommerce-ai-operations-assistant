@@ -5,7 +5,9 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
+from datetime import datetime, timedelta, timezone
+from fastapi import Query
+from sqlalchemy import func, select
 from backend.app.database import get_db
 from backend.app.models import Order, OrderItem, Product, StockMovement
 from backend.app.schemas import (
@@ -468,3 +470,70 @@ def get_inventory_alerts(
         )
 
     return alerts
+
+# --------------------------------------------------
+# INVENTORY - SALES VELOCITY
+# --------------------------------------------------
+
+
+@app.get("/inventory/velocity")
+def get_inventory_velocity(
+    days: int = Query(default=30, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Select only confirmed sales within the requested period.
+    confirmed_sales = (
+        select(
+            OrderItem.product_id.label("product_id"),
+            func.sum(OrderItem.quantity).label("units_sold"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(
+            Order.status == "confirmed",
+            Order.created_at >= start_date,
+        )
+        .group_by(OrderItem.product_id)
+        .subquery()
+    )
+
+    # Keep all products, including those without confirmed sales.
+    statement = (
+        select(
+            Product.id,
+            Product.sku,
+            Product.name,
+            Product.stock_quantity,
+            func.coalesce(
+                confirmed_sales.c.units_sold, 0
+            ).label("units_sold"),
+        )
+        .outerjoin(
+            confirmed_sales,
+            Product.id == confirmed_sales.c.product_id,
+        )
+        .order_by(Product.id)
+    )
+
+    rows = db.execute(statement).all()
+
+    results = []
+
+    for row in rows:
+        units_sold = int(row.units_sold)
+
+        results.append(
+            {
+                "product_id": row.id,
+                "sku": row.sku,
+                "name": row.name,
+                "stock_quantity": row.stock_quantity,
+                "units_sold": units_sold,
+                "average_daily_sales": round(
+                    units_sold / days, 2
+                ),
+            }
+        )
+
+    return results
