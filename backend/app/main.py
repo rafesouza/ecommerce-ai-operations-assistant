@@ -9,13 +9,17 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Query
 from sqlalchemy import func, select
 from backend.app.database import get_db
-from backend.app.models import Order, OrderItem, Product, StockMovement
+from backend.app.models import Order, OrderItem, Product, StockMovement, Supplier
+
 from backend.app.schemas import (
     OrderCreate,
     OrderRead,
     OrderStatusUpdate,
     ProductCreate,
     ProductRead,
+    SupplierCreate,
+    SupplierRead,
+    SupplierUpdate,
 )
 
 
@@ -709,3 +713,88 @@ def get_inventory_replenishment(
         )
 
     return results
+
+@app.post(
+    "/suppliers",
+    response_model=SupplierRead,
+    status_code=201,
+)
+def create_supplier(
+    supplier: SupplierCreate,
+    db: Session = Depends(get_db),
+):
+    new_supplier = Supplier(**supplier.model_dump())
+
+    db.add(new_supplier)
+    db.commit()
+    db.refresh(new_supplier)
+
+    return new_supplier
+
+@app.get(
+    "/suppliers",
+    response_model=list[SupplierRead],
+)
+def list_suppliers(
+    db: Session = Depends(get_db),
+):
+    suppliers = (
+        db.query(Supplier)
+        .order_by(Supplier.id)
+        .all()
+    )
+
+    return suppliers
+
+@app.get(
+    "/suppliers/{supplier_id}",
+    response_model=SupplierRead,
+)
+def get_supplier_by_id(
+    supplier_id: int,
+    db: Session = Depends(get_db),
+):
+    supplier = db.get(Supplier, supplier_id)
+
+    if supplier is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Supplier not found",
+        )
+
+    return supplier
+
+@app.patch(
+    "/suppliers/{supplier_id}",
+    response_model=SupplierRead,
+)
+def update_supplier(
+    supplier_id: int,
+    supplier_update: SupplierUpdate,
+    db: Session = Depends(get_db),
+):
+    supplier = db.get(Supplier, supplier_id)
+
+    if supplier is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Supplier not found",
+        )
+
+    update_data = supplier_update.model_dump(
+        exclude_unset=True,
+    )
+
+    for field, value in update_data.items():
+        if value is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field} cannot be null",
+            )
+
+        setattr(supplier, field, value)
+
+    db.commit()
+    db.refresh(supplier)
+
+    return supplier

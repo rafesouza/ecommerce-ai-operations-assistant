@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from decimal import Decimal
 
@@ -51,3 +50,31 @@ class OrderRead(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: Literal["confirmed", "cancelled"]
+
+class SupplierCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=255)
+    lead_time_days: int = Field(default=7, ge=1, le=365)
+
+
+class SupplierRead(SupplierCreate):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SupplierUpdate(BaseModel):
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+    email: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=255,
+    )
+    lead_time_days: int | None = Field(
+        default=None,
+        ge=1,
+        le=365,
+    )
