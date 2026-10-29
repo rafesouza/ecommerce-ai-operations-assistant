@@ -1,12 +1,11 @@
 
+from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Integer, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 class Base(DeclarativeBase):
     pass
 
@@ -55,6 +54,13 @@ class Product(Base):
         server_default="5",
     )
 
+    supplier_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("suppliers.id"),
+        nullable=True,
+    )
+
+
 class Order(Base):
     __tablename__ = "orders"
 
@@ -74,6 +80,7 @@ class Order(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -102,6 +109,7 @@ class OrderItem(Base):
         Numeric(10, 2),
         nullable=False,
     )
+
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
@@ -138,6 +146,7 @@ class StockMovement(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
 
 class Supplier(Base):
     __tablename__ = "suppliers"
