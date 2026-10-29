@@ -34,6 +34,12 @@ class Product(Base):
         nullable=False,
     )
 
+    purchase_cost: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+    )
+
+
     stock_quantity: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
