@@ -1,11 +1,9 @@
+
 from datetime import datetime
 from decimal import Decimal
-
 from typing import Literal
-from pydantic import BaseModel
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 
 class ProductCreate(BaseModel):
@@ -17,12 +15,14 @@ class ProductCreate(BaseModel):
     lead_time_days: int = Field(default=7, ge=1, le=365)
     safety_stock: int = Field(default=5, ge=0)
 
+    supplier_id: int | None = Field(default=None, gt=0)
 
 
 class ProductRead(ProductCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
 
 class OrderItemCreate(BaseModel):
     product_id: int = Field(gt=0)
@@ -51,6 +51,7 @@ class OrderRead(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: Literal["confirmed", "cancelled"]
 
+
 class SupplierCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     email: str = Field(min_length=3, max_length=255)
@@ -61,6 +62,7 @@ class SupplierRead(SupplierCreate):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class SupplierUpdate(BaseModel):
     name: str | None = Field(

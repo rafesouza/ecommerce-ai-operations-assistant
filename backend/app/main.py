@@ -56,6 +56,16 @@ def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
 ):
+
+    if product.supplier_id is not None:
+        supplier = db.get(Supplier, product.supplier_id)
+
+        if supplier is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Supplier not found",
+            )
+
     new_product = Product(**product.model_dump())
 
     db.add(new_product)
