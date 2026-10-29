@@ -138,3 +138,28 @@ class StockMovement(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    lead_time_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=7,
+        server_default="7",
+    )
