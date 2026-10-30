@@ -1,15 +1,19 @@
 
 from decimal import Decimal
 import math
+from backend.app.marketplace_fees import calculate_referral_fee
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from fastapi import Query
-from sqlalchemy import func, select
 from backend.app.database import get_db
 from backend.app.models import Order, OrderItem, Product, StockMovement, Supplier
+from backend.app.marketplace_fee_catalog import (
+    AMAZON_FR_CATALOG,
+    get_catalog_for_date,
+)
 
 from backend.app.schemas import (
     OrderCreate,
@@ -850,4 +854,87 @@ def get_product_profitability(
         "purchase_cost": product.purchase_cost,
         "gross_profit": gross_profit,
         "gross_margin_percent": gross_margin_percent,
+    }
+
+@app.get("/products/{product_id}/marketplace-profitability")
+def get_marketplace_profitability(
+    product_id: int,
+    category: str,
+    fulfillment_fee: Decimal = Query(ge=0),
+    custom_rate_percent: Decimal | None = Query(
+        default=None,
+        ge=0,
+        le=100,
+    ),
+    reference_date: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    if product.purchase_cost is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Product purchase cost is not defined",
+        )
+
+    if product.price <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Product selling price must be greater than zero",
+        )
+
+    selected_date = reference_date if reference_date is not None else date.today()
+
+    try:
+        selected_catalog = get_catalog_for_date(
+            [AMAZON_FR_CATALOG],
+            selected_date,
+        )
+
+        referral_fee = calculate_referral_fee(
+            category=category,
+            price=product.price,
+            marketplace="amazon.fr",
+            custom_rate_percent=custom_rate_percent,
+            catalog=selected_catalog,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+    fulfillment_fee = fulfillment_fee.quantize(
+        Decimal("0.01")
+    )
+
+    estimated_profit = (
+        product.price
+        - product.purchase_cost
+        - referral_fee
+        - fulfillment_fee
+    ).quantize(Decimal("0.01"))
+
+    estimated_margin_percent = (
+        estimated_profit / product.price * Decimal("100")
+    ).quantize(Decimal("0.01"))
+
+    return {
+        "product_id": product.id,
+        "marketplace": selected_catalog.marketplace,
+        "category": category,
+        "catalog_version": selected_catalog.version,
+        "reference_date": selected_date.isoformat(),
+        "price": product.price,
+        "purchase_cost": product.purchase_cost,
+        "referral_fee": referral_fee,
+        "fulfillment_fee": fulfillment_fee,
+        "estimated_profit": estimated_profit,
+        "estimated_margin_percent": estimated_margin_percent,
     }
