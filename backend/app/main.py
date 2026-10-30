@@ -808,3 +808,46 @@ def update_supplier(
     db.refresh(supplier)
 
     return supplier
+
+@app.get("/products/{product_id}/profitability")
+def get_product_profitability(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    if product.purchase_cost is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Product purchase cost is not defined",
+        )
+
+    if product.price == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Product selling price must be greater than zero",
+        )
+
+    gross_profit = product.price - product.purchase_cost
+
+    gross_margin_percent = (
+        gross_profit / product.price
+    ) * Decimal("100")
+
+    gross_margin_percent = gross_margin_percent.quantize(
+        Decimal("0.01")
+    )
+
+    return {
+        "product_id": product.id,
+        "price": product.price,
+        "purchase_cost": product.purchase_cost,
+        "gross_profit": gross_profit,
+        "gross_margin_percent": gross_margin_percent,
+    }
