@@ -102,6 +102,72 @@ async function loadProducts() {
     }
 }
 
-refreshButton.addEventListener("click", loadProducts);
+refreshButton.addEventListener("click", () => {
+    loadProducts();
+    loadDashboardMetrics();
+});
 
 document.addEventListener("DOMContentLoaded", loadProducts);
+
+async function loadDashboardMetrics() {
+    const totalOrdersElement = document.getElementById(
+        "total-orders"
+    );
+
+    const lowStockElement = document.getElementById(
+        "low-stock-products"
+    );
+
+    const revenueElement = document.getElementById(
+        "confirmed-revenue"
+    );
+
+    try {
+        const response = await fetch("/analytics/summary", {
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Analytics API returned HTTP ${response.status}`
+            );
+        }
+
+        const data = await response.json();
+
+        if (
+            typeof data.total_orders !== "number" ||
+            typeof data.low_stock_products !== "number" ||
+            data.confirmed_revenue == null ||
+            !Number.isFinite(Number(data.confirmed_revenue))
+        ) {
+            throw new Error("Unexpected analytics response.");
+        }
+
+        totalOrdersElement.textContent = String(
+            data.total_orders
+        );
+
+        lowStockElement.textContent = String(
+            data.low_stock_products
+        );
+
+        revenueElement.textContent = currencyFormatter.format(
+            Number(data.confirmed_revenue)
+        );
+
+    } catch (error) {
+        console.error("Failed to load dashboard metrics:", error);
+
+        totalOrdersElement.textContent = "—";
+        lowStockElement.textContent = "—";
+        revenueElement.textContent = "—";
+    }
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadDashboardMetrics
+);
