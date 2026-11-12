@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>E-commerce AI Operations Assistant</title>
+
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="dashboard">
+
+        <aside class="sidebar">
+            <div class="brand">
+                <h2>E-commerce AI</h2>
+                <p>Operations Assistant</p>
+            </div>
+
+            <nav class="navigation">
+                <a href="/" class="active">Dashboard</a>
+                <a href="#products">Products</a>
+                <a href="#inventory">Inventory</a>
+                <a href="#orders">Orders</a>
+                <a href="#suppliers">Suppliers</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <p>Version 0.1</p>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <header class="page-header">
+                <div>
+                    <h1>Dashboard</h1>
+                    <p>
+                        Monitor your e-commerce operations
+                        in one place.
+                    </p>
+                </div>
+
+                <div class="header-status">
+                    <span class="status-dot"></span>
+                    <span>API Dashboard</span>
+                </div>
+            </header>
+
+            <section class="metrics">
+
+                <article class="metric-card">
+                    <h3>Total Products</h3>
+                    <p id="total-products">—</p>
+                </article>
+
+                <article class="metric-card">
+                    <h3>Total Orders</h3>
+                    <p id="total-orders">—</p>
+                </article>
+
+                <article class="metric-card" id="inventory">
+                    <h3>Low Stock Products</h3>
+                    <p id="low-stock-products">—</p>
+                </article>
+
+                <article class="metric-card" id="orders">
+                    <h3>Confirmed Revenue</h3>
+                    <p id="confirmed-revenue">—</p>
+                </article>
+
+            </section>
+
+            <section class="content-section" id="products">
+
+                <div class="section-header">
+                    <div>
+                        <h2>Products</h2>
+                        <p>
+                            Overview of your registered products.
+                        </p>
+                    </div>
+
+                    <button id="refresh-button" type="button">
+                        Refresh Data
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>SKU</th>
+                                <th>Product Name</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="products-table-body">
+                            <tr>
+                                <td colspan="5">
+                                    Data not loaded yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </section>
+
+            <section class="content-section" id="suppliers">
+                <div class="section-header">
+                    <div>
+                        <h2>Suppliers</h2>
+                        <p>
+                            Supplier management will be
+                            available in a future update.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="footer">
+                <p>
+                    E-commerce AI Operations Assistant
+                    — Built with FastAPI and PostgreSQL
+                </p>
+            </footer>
+
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

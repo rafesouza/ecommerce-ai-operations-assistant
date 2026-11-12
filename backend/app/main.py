@@ -10,6 +10,9 @@ from datetime import datetime, timedelta, timezone, date
 from fastapi import Query
 from backend.app.database import get_db
 from backend.app.models import Order, OrderItem, Product, StockMovement, Supplier
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from backend.app.marketplace_fee_catalog import (
     AMAZON_FR_CATALOG,
     get_catalog_for_date,
@@ -32,7 +35,18 @@ app = FastAPI(
     description="API for e-commerce operations and AI integration.",
     version="0.2.0",
 )
+# Frontend configuration
+BASE_DIR = Path(__file__).resolve().parents[2]
+FRONTEND_DIR = BASE_DIR / "frontend"
 
+app.mount(
+    "/static",
+    StaticFiles(directory=FRONTEND_DIR),
+    name="static",
+)
+@app.get("/", include_in_schema=False)
+def dashboard():
+    return FileResponse(FRONTEND_DIR / "index.html")
 
 # --------------------------------------------------
 # HEALTH
