@@ -171,3 +171,115 @@ document.addEventListener(
     "DOMContentLoaded",
     loadDashboardMetrics
 );
+
+const ordersTableBody = document.getElementById(
+    "orders-table-body"
+);
+
+const refreshOrdersButton = document.getElementById(
+    "refresh-orders-button"
+);
+
+function showOrdersMessage(message) {
+    ordersTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 5;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    ordersTableBody.appendChild(row);
+}
+
+function renderOrders(orders) {
+    ordersTableBody.replaceChildren();
+
+    if (orders.length === 0) {
+        showOrdersMessage("No orders registered yet.");
+        return;
+    }
+
+    for (const order of orders) {
+        const row = document.createElement("tr");
+
+        const date = new Date(order.created_at);
+
+        const formattedDate = Number.isNaN(date.getTime())
+            ? "—"
+            : date.toLocaleDateString("fr-FR");
+
+        const itemCount = Array.isArray(order.items)
+            ? order.items.reduce(
+                (sum, item) => sum + Number(item.quantity || 0),
+                0
+            )
+            : 0;
+
+        const total = Number(order.total);
+
+        const values = [
+            order.id,
+            formattedDate,
+            order.status,
+            itemCount,
+            Number.isFinite(total)
+                ? currencyFormatter.format(total)
+                : "—"
+        ];
+
+        for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = String(value ?? "—");
+            row.appendChild(cell);
+        }
+
+        ordersTableBody.appendChild(row);
+    }
+}
+
+async function loadOrders() {
+    refreshOrdersButton.disabled = true;
+    refreshOrdersButton.textContent = "Loading...";
+
+    showOrdersMessage("Loading orders...");
+
+    try {
+        const response = await fetch("/orders", {
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Orders API returned HTTP ${response.status}`
+            );
+        }
+
+        const orders = await response.json();
+
+        if (!Array.isArray(orders)) {
+            throw new Error("Unexpected orders response.");
+        }
+
+        renderOrders(orders);
+    } catch (error) {
+        console.error("Failed to load orders:", error);
+
+        showOrdersMessage(
+            "Unable to load orders. Check the API connection."
+        );
+    } finally {
+        refreshOrdersButton.disabled = false;
+        refreshOrdersButton.textContent = "Refresh Orders";
+    }
+}
+
+refreshOrdersButton.addEventListener("click", () => {
+    loadOrders();
+    loadDashboardMetrics();
+});
+
+document.addEventListener("DOMContentLoaded", loadOrders);
