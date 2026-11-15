@@ -26,7 +26,7 @@
                 <a href="/" class="active">Dashboard</a>
                 <a href="#products">Products</a>
                 <a href="#inventory">Inventory</a>
-                <a href="#orders">Orders</a>
+                <a href="#orders-list">Orders</a>
                 <a href="#suppliers">Suppliers</a>
             </nav>
 
@@ -114,6 +114,46 @@
                 </div>
 
             </section>
+
+<!-- Orders Section -->
+<section class="content-section" id="orders-list">
+
+    <div class="section-header">
+        <div>
+            <h2>Orders</h2>
+            <p>
+                View and monitor your registered orders.
+            </p>
+        </div>
+
+        <button id="refresh-orders-button" type="button">
+            Refresh Orders
+        </button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody id="orders-table-body">
+                <tr>
+                    <td colspan="5">
+                        Orders not loaded yet.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</section>
 
             <section class="content-section" id="suppliers">
                 <div class="section-header">
