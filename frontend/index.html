@@ -154,18 +154,45 @@
     </div>
 
 </section>
+<!-- Suppliers Section -->
+<section class="content-section" id="suppliers">
 
-            <section class="content-section" id="suppliers">
-                <div class="section-header">
-                    <div>
-                        <h2>Suppliers</h2>
-                        <p>
-                            Supplier management will be
-                            available in a future update.
-                        </p>
-                    </div>
-                </div>
-            </section>
+    <div class="section-header">
+        <div>
+            <h2>Suppliers</h2>
+            <p>
+                View and monitor your registered suppliers.
+            </p>
+        </div>
+
+        <button id="refresh-suppliers-button" type="button">
+            Refresh Suppliers
+        </button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Supplier ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Lead Time</th>
+                </tr>
+            </thead>
+
+            <tbody id="suppliers-table-body">
+                <tr>
+                    <td colspan="4">
+                        Suppliers not loaded yet.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
 
             <footer class="footer">
                 <p>

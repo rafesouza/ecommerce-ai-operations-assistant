@@ -283,3 +283,94 @@ refreshOrdersButton.addEventListener("click", () => {
 });
 
 document.addEventListener("DOMContentLoaded", loadOrders);
+
+const suppliersTableBody = document.getElementById(
+    "suppliers-table-body"
+);
+
+const refreshSuppliersButton = document.getElementById(
+    "refresh-suppliers-button"
+);
+
+function showSuppliersMessage(message) {
+    suppliersTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    suppliersTableBody.appendChild(row);
+}
+
+function renderSuppliers(suppliers) {
+    suppliersTableBody.replaceChildren();
+
+    if (suppliers.length === 0) {
+        showSuppliersMessage("No suppliers registered yet.");
+        return;
+    }
+
+    for (const supplier of suppliers) {
+        const row = document.createElement("tr");
+
+        const values = [
+            supplier.id,
+            supplier.name,
+            supplier.email,
+            `${supplier.lead_time_days} days`
+        ];
+
+        for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = String(value ?? "—");
+            row.appendChild(cell);
+        }
+
+        suppliersTableBody.appendChild(row);
+    }
+}
+
+async function loadSuppliers() {
+    refreshSuppliersButton.disabled = true;
+    refreshSuppliersButton.textContent = "Loading...";
+
+    showSuppliersMessage("Loading suppliers...");
+
+    try {
+        const response = await fetch("/suppliers", {
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Suppliers API returned HTTP ${response.status}`
+            );
+        }
+
+        const suppliers = await response.json();
+
+        if (!Array.isArray(suppliers)) {
+            throw new Error("Unexpected suppliers response.");
+        }
+
+        renderSuppliers(suppliers);
+    } catch (error) {
+        console.error("Failed to load suppliers:", error);
+
+        showSuppliersMessage(
+            "Unable to load suppliers. Check the API connection."
+        );
+    } finally {
+        refreshSuppliersButton.disabled = false;
+        refreshSuppliersButton.textContent = "Refresh Suppliers";
+    }
+}
+
+refreshSuppliersButton.addEventListener("click", loadSuppliers);
+
+document.addEventListener("DOMContentLoaded", loadSuppliers);
