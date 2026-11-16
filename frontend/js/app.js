@@ -839,3 +839,149 @@ async function deleteProduct(productId, productName) {
         );
     }
 }
+
+const saveProductButton = document.getElementById(
+    "save-product-button"
+);
+
+async function saveProductChanges(event) {
+    event.preventDefault();
+
+    if (!productEditForm.reportValidity()) {
+        return;
+    }
+
+    const productId = document.getElementById(
+        "edit-product-id"
+    ).value;
+
+    const name = document.getElementById(
+        "edit-product-name"
+    ).value.trim();
+
+    const price = document.getElementById(
+        "edit-product-price"
+    ).value;
+
+    const purchaseCost = document.getElementById(
+        "edit-product-purchase-cost"
+    ).value;
+
+    const leadTimeDays = Number(
+        document.getElementById("edit-product-lead-time").value
+    );
+
+    const safetyStock = Number(
+        document.getElementById("edit-product-safety-stock").value
+    );
+
+    const supplierValue = editProductSupplierSelect.value;
+
+    const validMoney = (value) =>
+        /^\d+(\.\d{1,2})?$/.test(value);
+
+    if (
+        !name ||
+        !validMoney(price) ||
+        (purchaseCost !== "" && !validMoney(purchaseCost)) ||
+        !Number.isSafeInteger(leadTimeDays) ||
+        leadTimeDays < 1 ||
+        leadTimeDays > 365 ||
+        !Number.isSafeInteger(safetyStock) ||
+        safetyStock < 0
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Please enter valid product information.";
+        return;
+    }
+
+    const supplierId = supplierValue === ""
+        ? null
+        : Number(supplierValue);
+
+    if (
+        supplierId !== null &&
+        (!Number.isSafeInteger(supplierId) || supplierId <= 0)
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Please select a valid supplier.";
+        return;
+    }
+
+    if (
+        !Number.isSafeInteger(Number(productId)) ||
+        Number(productId) <= 0
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Invalid product ID.";
+        return;
+    }
+
+    if (productSupplierSelect.disabled) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Supplier list unavailable. Try again.";
+        return;
+    }
+
+    const payload = {
+        name: name,
+        price: price,
+        purchase_cost: purchaseCost === "" ? null : purchaseCost,
+        lead_time_days: leadTimeDays,
+        safety_stock: safetyStock,
+        supplier_id: supplierId
+    };
+
+    const message = document.getElementById(
+        "product-edit-message"
+    );
+
+    saveProductButton.disabled = true;
+    saveProductButton.textContent = "Saving...";
+    message.textContent = "";
+
+    try {
+        const response = await fetch(
+            `/products/${encodeURIComponent(productId)}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(
+                () => null
+            );
+
+            throw new Error(
+                typeof errorData?.detail === "string"
+                    ? errorData.detail
+                    : `Unable to update product (HTTP ${response.status}).`
+            );
+        }
+
+        message.textContent = "Product updated successfully.";
+
+        await loadProducts();
+        await loadDashboardMetrics();
+
+    } catch (error) {
+        console.error("Failed to update product:", error);
+        message.textContent = error.message;
+
+    } finally {
+        saveProductButton.disabled = false;
+        saveProductButton.textContent = "Save Changes";
+    }
+}
+
+productEditForm.addEventListener("submit", saveProductChanges);
