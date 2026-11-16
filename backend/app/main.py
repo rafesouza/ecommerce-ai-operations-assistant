@@ -185,6 +185,60 @@ def update_product(
 
     return product
 
+# --------------------------------------------------
+# PRODUCTS - DELETE
+# --------------------------------------------------
+
+@app.delete(
+    "/products/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    order_item = db.scalar(
+        select(OrderItem.id)
+        .where(OrderItem.product_id == product_id)
+        .limit(1)
+    )
+
+    if order_item is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a product associated with orders.",
+        )
+
+    stock_movement = db.scalar(
+        select(StockMovement.id)
+        .where(StockMovement.product_id == product_id)
+        .limit(1)
+    )
+
+    if stock_movement is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a product with stock movements.",
+        )
+
+    try:
+        db.delete(product)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a product with existing dependencies.",
+        ) from exc
+
 
 # --------------------------------------------------
 # ORDERS - CREATE WITH INVENTORY CONTROL

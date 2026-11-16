@@ -360,3 +360,7 @@ tbody tr:hover {
 .supplier-form[hidden] {
     display: none;
 }
+
+.delete-product-button {
+    margin-left: 8px;
+}
