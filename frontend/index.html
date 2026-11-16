@@ -157,6 +157,8 @@
 <!-- Suppliers Section -->
 <section class="content-section" id="suppliers">
 
+<!-- Supplier Creation Form -->
+
     <div class="section-header">
         <div>
             <h2>Suppliers</h2>
@@ -169,6 +171,58 @@
             Refresh Suppliers
         </button>
     </div>
+<form id="supplier-form" class="supplier-form">
+    <div class="form-grid">
+
+        <div class="form-field">
+            <label for="supplier-name">Supplier Name</label>
+            <input
+                type="text"
+                id="supplier-name"
+                name="name"
+                maxlength="200"
+                required
+                placeholder="Enter supplier name"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="supplier-email">Email</label>
+            <input
+                type="email"
+                id="supplier-email"
+                name="email"
+                maxlength="255"
+                required
+                placeholder="supplier@example.com"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="supplier-lead-time">
+                Lead Time (days)
+            </label>
+            <input
+                type="number"
+                id="supplier-lead-time"
+                name="lead_time_days"
+                min="1"
+                max="365"
+                value="7"
+                required
+            >
+        </div>
+
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" id="create-supplier-button">
+            Add Supplier
+        </button>
+
+        <p id="supplier-form-message" role="status" aria-live="polite"></p>
+    </div>
+</form>
 
     <div class="table-container">
         <table>

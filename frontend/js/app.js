@@ -374,3 +374,94 @@ async function loadSuppliers() {
 refreshSuppliersButton.addEventListener("click", loadSuppliers);
 
 document.addEventListener("DOMContentLoaded", loadSuppliers);
+
+const supplierForm = document.getElementById("supplier-form");
+const createSupplierButton = document.getElementById(
+    "create-supplier-button"
+);
+const supplierFormMessage = document.getElementById(
+    "supplier-form-message"
+);
+
+async function createSupplier(event) {
+    event.preventDefault();
+
+    if (!supplierForm.reportValidity()) {
+        return;
+    }
+
+    const name = document.getElementById(
+        "supplier-name"
+    ).value.trim();
+
+    const email = document.getElementById(
+        "supplier-email"
+    ).value.trim();
+
+    const leadTimeDays = Number(
+        document.getElementById("supplier-lead-time").value
+    );
+
+    if (
+        !name ||
+        !email ||
+        !Number.isInteger(leadTimeDays) ||
+        leadTimeDays < 1 ||
+        leadTimeDays > 365
+    ) {
+        supplierFormMessage.textContent =
+            "Please enter valid supplier information.";
+        return;
+    }
+
+    createSupplierButton.disabled = true;
+    createSupplierButton.textContent = "Saving...";
+    supplierFormMessage.textContent = "";
+
+    try {
+        const response = await fetch("/suppliers", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                lead_time_days: leadTimeDays
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(
+                () => null
+            );
+
+            const detail = errorData?.detail;
+
+            throw new Error(
+                typeof detail === "string"
+                    ? detail
+                    : `Unable to create supplier (HTTP ${response.status}).`
+            );
+        }
+
+        supplierForm.reset();
+
+        supplierFormMessage.textContent =
+            "Supplier created successfully.";
+
+        await loadSuppliers();
+
+    } catch (error) {
+        console.error("Failed to create supplier:", error);
+
+        supplierFormMessage.textContent = error.message;
+
+    } finally {
+        createSupplierButton.disabled = false;
+        createSupplierButton.textContent = "Add Supplier";
+    }
+}
+
+supplierForm.addEventListener("submit", createSupplier);
