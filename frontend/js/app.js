@@ -68,7 +68,19 @@ function renderProducts(products) {
             openProductEditor(product.id);
         });
         actionsCell.appendChild(editButton);
+
+        const deleteButton = document.createElement("button");
+
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.className = "delete-product-button";
+        deleteButton.dataset.productId = String(product.id);
+        deleteButton.addEventListener("click", () => {
+            deleteProduct(product.id, product.name);
+        });
+        actionsCell.appendChild(deleteButton);
         row.appendChild(actionsCell);
+
 
 
         productsTableBody.appendChild(row);
@@ -774,6 +786,59 @@ document.getElementById(
     productEditForm.hidden = true;
     productEditForm.reset();
 });
+
+async function deleteProduct(productId, productName) {
+    const confirmed = window.confirm(
+        `Are you sure you want to delete "${productName}"?\n\n` +
+        "This action cannot be undone."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/products/${encodeURIComponent(productId)}`,
+            {
+                method: "DELETE",
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(
+                () => null
+            );
+
+            throw new Error(
+                typeof errorData?.detail === "string"
+                    ? errorData.detail
+                    : `Unable to delete product (HTTP ${response.status}).`
+            );
+        }
+
+        if (response.status !== 204) {
+            throw new Error(
+                "Unexpected response from the server."
+            );
+        }
+
+        await loadProducts();
+        await loadDashboardMetrics();
+
+        window.alert("Product deleted successfully.");
+
+    } catch (error) {
+        console.error("Failed to delete product:", error);
+
+        window.alert(
+            `Unable to delete product:\n${error.message}`
+        );
+    }
+}
 
 const saveProductButton = document.getElementById(
     "save-product-button"
