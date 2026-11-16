@@ -26,6 +26,46 @@ class ProductCreate(BaseModel):
     supplier_id: int | None = Field(default=None, gt=0)
 
 
+class ProductUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+
+    price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    purchase_cost: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    lead_time_days: int | None = Field(
+        default=None,
+        ge=1,
+        le=365,
+    )
+
+    safety_stock: int | None = Field(
+        default=None,
+        ge=0,
+    )
+
+    supplier_id: int | None = Field(
+        default=None,
+        gt=0,
+    )
+
+
+
 class ProductRead(ProductCreate):
     model_config = ConfigDict(from_attributes=True)
 

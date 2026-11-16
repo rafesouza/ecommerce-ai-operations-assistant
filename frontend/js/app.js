@@ -24,7 +24,7 @@ function showTableMessage(message) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
-    cell.colSpan = 5;
+    cell.colSpan = 6;
     cell.textContent = message;
 
     row.appendChild(cell);
@@ -57,6 +57,19 @@ function renderProducts(products) {
             cell.textContent = String(value ?? "—");
             row.appendChild(cell);
         }
+        const actionsCell = document.createElement("td");
+        const editButton = document.createElement("button");
+
+        editButton.type = "button";
+        editButton.textContent = "Edit";
+        editButton.className = "edit-product-button";
+        editButton.dataset.productId = String(product.id);
+        editButton.addEventListener("click", () => {
+            openProductEditor(product.id);
+        });
+        actionsCell.appendChild(editButton);
+        row.appendChild(actionsCell);
+
 
         productsTableBody.appendChild(row);
     }
@@ -663,3 +676,247 @@ async function createProduct(event) {
 }
 
 productForm.addEventListener("submit", createProduct);
+
+const productEditForm = document.getElementById(
+    "product-edit-form"
+);
+
+const editProductSupplierSelect = document.getElementById(
+    "edit-product-supplier"
+);
+
+function populateEditSupplierOptions(productSupplierId) {
+    const sourceOptions = productSupplierSelect.options;
+
+    editProductSupplierSelect.replaceChildren();
+
+    for (const sourceOption of sourceOptions) {
+        const option = document.createElement("option");
+
+        option.value = sourceOption.value;
+        option.textContent = sourceOption.textContent;
+
+        editProductSupplierSelect.appendChild(option);
+    }
+
+    editProductSupplierSelect.value =
+        productSupplierId == null
+            ? ""
+            : String(productSupplierId);
+}
+
+async function openProductEditor(productId) {
+    const message = document.getElementById(
+        "product-edit-message"
+    );
+
+    message.textContent = "";
+
+    try {
+        const response = await fetch(
+            `/products/${encodeURIComponent(productId)}`,
+            {
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Unable to load product (HTTP ${response.status}).`
+            );
+        }
+
+        const product = await response.json();
+
+        document.getElementById("edit-product-id").value =
+            String(product.id);
+
+        document.getElementById("edit-product-name").value =
+            product.name;
+
+        document.getElementById("edit-product-price").value =
+            product.price;
+
+        document.getElementById(
+            "edit-product-purchase-cost"
+        ).value = product.purchase_cost ?? "";
+
+        document.getElementById(
+            "edit-product-lead-time"
+        ).value = product.lead_time_days;
+
+        document.getElementById(
+            "edit-product-safety-stock"
+        ).value = product.safety_stock;
+
+        await loadProductSuppliers();
+
+        populateEditSupplierOptions(product.supplier_id);
+
+        productEditForm.hidden = false;
+
+        productEditForm.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    } catch (error) {
+        console.error("Failed to open product editor:", error);
+        productEditForm.hidden = false;
+        message.textContent = error.message;
+    }
+}
+document.getElementById(
+    "cancel-product-edit-button"
+).addEventListener("click", () => {
+    productEditForm.hidden = true;
+    productEditForm.reset();
+});
+
+const saveProductButton = document.getElementById(
+    "save-product-button"
+);
+
+async function saveProductChanges(event) {
+    event.preventDefault();
+
+    if (!productEditForm.reportValidity()) {
+        return;
+    }
+
+    const productId = document.getElementById(
+        "edit-product-id"
+    ).value;
+
+    const name = document.getElementById(
+        "edit-product-name"
+    ).value.trim();
+
+    const price = document.getElementById(
+        "edit-product-price"
+    ).value;
+
+    const purchaseCost = document.getElementById(
+        "edit-product-purchase-cost"
+    ).value;
+
+    const leadTimeDays = Number(
+        document.getElementById("edit-product-lead-time").value
+    );
+
+    const safetyStock = Number(
+        document.getElementById("edit-product-safety-stock").value
+    );
+
+    const supplierValue = editProductSupplierSelect.value;
+
+    const validMoney = (value) =>
+        /^\d+(\.\d{1,2})?$/.test(value);
+
+    if (
+        !name ||
+        !validMoney(price) ||
+        (purchaseCost !== "" && !validMoney(purchaseCost)) ||
+        !Number.isSafeInteger(leadTimeDays) ||
+        leadTimeDays < 1 ||
+        leadTimeDays > 365 ||
+        !Number.isSafeInteger(safetyStock) ||
+        safetyStock < 0
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Please enter valid product information.";
+        return;
+    }
+
+    const supplierId = supplierValue === ""
+        ? null
+        : Number(supplierValue);
+
+    if (
+        supplierId !== null &&
+        (!Number.isSafeInteger(supplierId) || supplierId <= 0)
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Please select a valid supplier.";
+        return;
+    }
+
+    if (
+        !Number.isSafeInteger(Number(productId)) ||
+        Number(productId) <= 0
+    ) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Invalid product ID.";
+        return;
+    }
+
+    if (productSupplierSelect.disabled) {
+        document.getElementById(
+            "product-edit-message"
+        ).textContent = "Supplier list unavailable. Try again.";
+        return;
+    }
+
+    const payload = {
+        name: name,
+        price: price,
+        purchase_cost: purchaseCost === "" ? null : purchaseCost,
+        lead_time_days: leadTimeDays,
+        safety_stock: safetyStock,
+        supplier_id: supplierId
+    };
+
+    const message = document.getElementById(
+        "product-edit-message"
+    );
+
+    saveProductButton.disabled = true;
+    saveProductButton.textContent = "Saving...";
+    message.textContent = "";
+
+    try {
+        const response = await fetch(
+            `/products/${encodeURIComponent(productId)}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify(payload)
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(
+                () => null
+            );
+
+            throw new Error(
+                typeof errorData?.detail === "string"
+                    ? errorData.detail
+                    : `Unable to update product (HTTP ${response.status}).`
+            );
+        }
+
+        message.textContent = "Product updated successfully.";
+
+        await loadProducts();
+        await loadDashboardMetrics();
+
+    } catch (error) {
+        console.error("Failed to update product:", error);
+        message.textContent = error.message;
+
+    } finally {
+        saveProductButton.disabled = false;
+        saveProductButton.textContent = "Save Changes";
+    }
+}
+
+productEditForm.addEventListener("submit", saveProductChanges);

@@ -357,3 +357,6 @@ tbody tr:hover {
         grid-template-columns: 1fr;
     }
 }
+.supplier-form[hidden] {
+    display: none;
+}
