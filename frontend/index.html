@@ -91,6 +91,126 @@
                     </button>
                 </div>
 
+<!-- Product Creation Form -->
+<form id="product-form" class="supplier-form">
+
+    <h3>Add New Product</h3>
+
+    <div class="form-grid">
+
+        <div class="form-field">
+            <label for="product-sku">SKU</label>
+            <input
+                type="text"
+                id="product-sku"
+                maxlength="50"
+                required
+                placeholder="SKU-001"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-name">Product Name</label>
+            <input
+                type="text"
+                id="product-name"
+                maxlength="200"
+                required
+                placeholder="Enter product name"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-price">Selling Price (€)</label>
+            <input
+                type="number"
+                id="product-price"
+                min="0"
+                step="0.01"
+                required
+                placeholder="49.90"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-purchase-cost">
+                Purchase Cost (€)
+            </label>
+            <input
+                type="number"
+                id="product-purchase-cost"
+                min="0"
+                step="0.01"
+                placeholder="25.00"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-stock">Stock Quantity</label>
+            <input
+                type="number"
+                id="product-stock"
+                min="0"
+                step="1"
+                required
+                value="0"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-lead-time">
+                Lead Time (days)
+            </label>
+            <input
+                type="number"
+                id="product-lead-time"
+                min="1"
+                max="365"
+                step="1"
+                required
+                value="7"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-safety-stock">
+                Safety Stock
+            </label>
+            <input
+                type="number"
+                id="product-safety-stock"
+                min="0"
+                step="1"
+                required
+                value="5"
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="product-supplier">
+                Supplier
+            </label>
+            <select id="product-supplier">
+                <option value="">No supplier</option>
+            </select>
+        </div>
+
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" id="create-product-button">
+            Add Product
+        </button>
+
+        <p
+            id="product-form-message"
+            role="status"
+            aria-live="polite"
+        ></p>
+    </div>
+
+</form>
+
                 <div class="table-container">
                     <table>
                         <thead>

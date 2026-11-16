@@ -452,7 +452,7 @@ async function createSupplier(event) {
             "Supplier created successfully.";
 
         await loadSuppliers();
-
+await loadProductSuppliers();
     } catch (error) {
         console.error("Failed to create supplier:", error);
 
@@ -465,3 +465,201 @@ async function createSupplier(event) {
 }
 
 supplierForm.addEventListener("submit", createSupplier);
+
+const productSupplierSelect = document.getElementById(
+    "product-supplier"
+);
+
+async function loadProductSuppliers() {
+    productSupplierSelect.replaceChildren();
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "No supplier";
+    productSupplierSelect.appendChild(defaultOption);
+
+    try {
+        const response = await fetch("/suppliers", {
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Suppliers API returned HTTP ${response.status}`
+            );
+        }
+
+        const suppliers = await response.json();
+
+        if (!Array.isArray(suppliers)) {
+            throw new Error("Unexpected suppliers response.");
+        }
+
+        for (const supplier of suppliers) {
+            const option = document.createElement("option");
+
+            option.value = String(supplier.id);
+            option.textContent = supplier.name;
+
+            productSupplierSelect.appendChild(option);
+        }
+
+    } catch (error) {
+        console.error(
+            "Failed to load product suppliers:",
+            error
+        );
+
+        defaultOption.textContent = "Suppliers unavailable";
+        productSupplierSelect.disabled = true;
+        return;
+    }
+
+    productSupplierSelect.disabled = false;
+}
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadProductSuppliers
+);
+
+const productForm = document.getElementById("product-form");
+const createProductButton = document.getElementById(
+    "create-product-button"
+);
+const productFormMessage = document.getElementById(
+    "product-form-message"
+);
+
+async function createProduct(event) {
+    event.preventDefault();
+
+    if (!productForm.reportValidity()) {
+        return;
+    }
+
+    const sku = document.getElementById(
+        "product-sku"
+    ).value.trim();
+
+    const name = document.getElementById(
+        "product-name"
+    ).value.trim();
+
+    const price = document.getElementById(
+        "product-price"
+    ).value;
+
+    const purchaseCost = document.getElementById(
+        "product-purchase-cost"
+    ).value;
+
+    const stockQuantity = Number(
+        document.getElementById("product-stock").value
+    );
+
+    const leadTimeDays = Number(
+        document.getElementById("product-lead-time").value
+    );
+
+    const safetyStock = Number(
+        document.getElementById("product-safety-stock").value
+    );
+
+    const supplierValue = productSupplierSelect.value;
+
+    const validMoney = (value) =>
+        /^\d+(\.\d{1,2})?$/.test(value);
+
+    if (
+        !sku ||
+        !name ||
+        !validMoney(price) ||
+        (purchaseCost !== "" && !validMoney(purchaseCost)) ||
+        !Number.isSafeInteger(stockQuantity) ||
+        stockQuantity < 0 ||
+        !Number.isSafeInteger(leadTimeDays) ||
+        leadTimeDays < 1 ||
+        leadTimeDays > 365 ||
+        !Number.isSafeInteger(safetyStock) ||
+        safetyStock < 0
+    ) {
+        productFormMessage.textContent =
+            "Please enter valid product information.";
+        return;
+    }
+
+    const supplierId = supplierValue === ""
+        ? null
+        : Number(supplierValue);
+
+    if (
+        supplierId !== null &&
+        (!Number.isSafeInteger(supplierId) || supplierId <= 0)
+    ) {
+        productFormMessage.textContent =
+            "Please select a valid supplier.";
+        return;
+    }
+
+    const payload = {
+        sku: sku,
+        name: name,
+        price: price,
+        purchase_cost: purchaseCost === "" ? null : purchaseCost,
+        stock_quantity: stockQuantity,
+        lead_time_days: leadTimeDays,
+        safety_stock: safetyStock,
+        supplier_id: supplierId
+    };
+
+    createProductButton.disabled = true;
+    createProductButton.textContent = "Saving...";
+    productFormMessage.textContent = "";
+
+    try {
+        const response = await fetch("/products", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(
+                () => null
+            );
+
+            const detail = errorData?.detail;
+
+            throw new Error(
+                typeof detail === "string"
+                    ? detail
+                    : `Unable to create product (HTTP ${response.status}).`
+            );
+        }
+
+        productForm.reset();
+
+        productFormMessage.textContent =
+            "Product created successfully.";
+
+        await loadProducts();
+        await loadDashboardMetrics();
+
+    } catch (error) {
+        console.error("Failed to create product:", error);
+
+        productFormMessage.textContent = error.message;
+
+    } finally {
+        createProductButton.disabled = false;
+        createProductButton.textContent = "Add Product";
+    }
+}
+
+productForm.addEventListener("submit", createProduct);
