@@ -24,6 +24,7 @@ from backend.app.schemas import (
     OrderStatusUpdate,
     ProductCreate,
     ProductRead,
+    ProductUpdate,
     SupplierCreate,
     SupplierRead,
     SupplierUpdate,
@@ -119,6 +120,68 @@ def get_product(
             status_code=404,
             detail="Product not found.",
         )
+
+    return product
+
+# --------------------------------------------------
+# PRODUCTS - UPDATE
+# --------------------------------------------------
+
+@app.patch("/products/{product_id}", response_model=ProductRead)
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # Only nullable fields can be explicitly cleared.
+    non_nullable_fields = {
+        "name",
+        "price",
+        "lead_time_days",
+        "safety_stock",
+    }
+
+    for field in non_nullable_fields:
+        if field in update_data and update_data[field] is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field} cannot be null",
+            )
+
+    if update_data.get("supplier_id") is not None:
+        supplier = db.get(
+            Supplier,
+            update_data["supplier_id"],
+        )
+
+        if supplier is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Supplier not found",
+            )
+
+    for field, value in update_data.items():
+        setattr(product, field, value)
+
+    try:
+        db.commit()
+        db.refresh(product)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Unable to update product",
+        ) from exc
 
     return product
 
