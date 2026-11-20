@@ -389,3 +389,24 @@ tbody tr:hover {
     background-color: #dcfce7;
     color: #166534;
 }
+
+/* -----------------------------------------------
+   FORECAST ACCURACY METRICS
+----------------------------------------------- */
+
+#forecast-accuracy .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin: 24px 0;
+}
+
+#forecast-accuracy .metric-card {
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    #forecast-accuracy .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
