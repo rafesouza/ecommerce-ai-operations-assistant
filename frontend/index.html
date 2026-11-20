@@ -25,7 +25,7 @@
             <nav class="navigation">
                 <a href="/" class="active">Dashboard</a>
                 <a href="#products">Products</a>
-                <a href="#inventory">Inventory</a>
+                <a href="#inventory-intelligence">Inventory</a>
                 <a href="#orders-list">Orders</a>
                 <a href="#suppliers">Suppliers</a>
             </nav>
@@ -75,6 +75,63 @@
                 </article>
 
             </section>
+
+<!-- Inventory Intelligence Section -->
+<section class="content-section" id="inventory-intelligence">
+
+    <div class="section-header">
+        <div>
+            <h2>Inventory Intelligence</h2>
+            <p>
+                Monitor inventory and replenishment recommendations.
+            </p>
+        </div>
+
+        <button id="refresh-inventory-button" type="button">
+            Refresh Inventory
+        </button>
+    </div>
+
+    <div class="form-field">
+        <label for="inventory-period">
+            Sales Analysis Period
+        </label>
+
+        <select id="inventory-period">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="60">Last 60 days</option>
+            <option value="90">Last 90 days</option>
+        </select>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Stock</th>
+                    <th>Units Sold</th>
+                    <th>Daily Sales</th>
+                    <th>Lead Time</th>
+                    <th>Safety Stock</th>
+                    <th>Reorder Qty</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody id="inventory-table-body">
+                <tr>
+                    <td colspan="9">
+                        Inventory data not loaded yet.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</section>
 
             <section class="content-section" id="products">
 

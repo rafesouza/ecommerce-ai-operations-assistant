@@ -364,3 +364,28 @@ tbody tr:hover {
 .delete-product-button {
     margin-left: 8px;
 }
+/* Inventory Status Indicators */
+
+.inventory-status {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.inventory-status.out-of-stock {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.inventory-status.reorder-needed {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.inventory-status.no-reorder {
+    background-color: #dcfce7;
+    color: #166534;
+}
