@@ -26,6 +26,7 @@
                 <a href="/" class="active">Dashboard</a>
                 <a href="#products">Products</a>
                 <a href="#inventory-intelligence">Inventory</a>
+                <a href="#demand-forecast">Demand Forecast</a>
                 <a href="#orders-list">Orders</a>
                 <a href="#suppliers">Suppliers</a>
             </nav>
@@ -133,6 +134,83 @@
 
 </section>
 
+<!-- Demand Forecasting Section -->
+<section class="content-section" id="demand-forecast">
+
+    <div class="section-header">
+        <div>
+            <h2>Demand Forecasting</h2>
+            <p>
+                Estimate future demand using confirmed sales history.
+            </p>
+        </div>
+
+        <button id="refresh-forecast-button" type="button">
+            Refresh Forecast
+        </button>
+    </div>
+
+    <div class="form-grid">
+
+        <div class="form-field">
+            <label for="forecast-history-period">
+                Historical Sales Period
+            </label>
+
+            <select id="forecast-history-period">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="forecast-horizon">
+                Forecast Horizon
+            </label>
+
+            <select id="forecast-horizon">
+                <option value="7">Next 7 days</option>
+                <option value="14" selected>Next 14 days</option>
+                <option value="30">Next 30 days</option>
+            </select>
+        </div>
+
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Current Stock</th>
+                    <th>Units Sold</th>
+                    <th>Daily Average</th>
+                    <th>Forecast Demand</th>
+                    <th>Stock Gap</th>
+                    <th>Forecast Status</th>
+                </tr>
+            </thead>
+
+            <tbody id="forecast-table-body">
+                <tr>
+                    <td colspan="8">
+                        Forecast data not loaded yet.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p class="forecast-note">
+        Forecasts use historical daily sales averages.
+        Results do not account for seasonality, stockouts,
+        or changes in future demand.
+    </p>
+
+</section>
             <section class="content-section" id="products">
 
                 <div class="section-header">
