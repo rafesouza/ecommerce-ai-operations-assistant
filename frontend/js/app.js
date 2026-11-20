@@ -1123,3 +1123,163 @@ document.addEventListener(
     "DOMContentLoaded",
     loadInventory
 );
+
+const forecastTableBody = document.getElementById(
+    "forecast-table-body"
+);
+
+const forecastHistorySelect = document.getElementById(
+    "forecast-history-period"
+);
+
+const forecastHorizonSelect = document.getElementById(
+    "forecast-horizon"
+);
+
+const refreshForecastButton = document.getElementById(
+    "refresh-forecast-button"
+);
+
+function showForecastMessage(message) {
+    forecastTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 8;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    forecastTableBody.appendChild(row);
+}
+
+function renderForecast(products) {
+    forecastTableBody.replaceChildren();
+
+    if (products.length === 0) {
+        showForecastMessage("No products available for forecasting.");
+        return;
+    }
+
+    for (const product of products) {
+        const row = document.createElement("tr");
+
+        const hasForecast =
+            product.forecast_quantity !== null &&
+            product.forecast_quantity !== undefined;
+
+        const stock = Number(product.stock_quantity);
+
+        const forecastQuantity = hasForecast
+            ? Number(product.forecast_quantity)
+            : null;
+
+        const stockGap = hasForecast
+            ? Math.max(0, forecastQuantity - stock)
+            : null;
+
+        const values = [
+            product.sku,
+            product.name,
+            product.stock_quantity,
+            product.units_sold,
+            Number(product.average_daily_sales).toFixed(2),
+            hasForecast ? forecastQuantity : "—",
+            stockGap === null ? "—" : stockGap
+        ];
+
+        for (const value of values) {
+            const cell = document.createElement("td");
+
+            cell.textContent = String(value ?? "—");
+            row.appendChild(cell);
+        }
+
+        const statusCell = document.createElement("td");
+        const statusLabel = document.createElement("span");
+
+        statusLabel.className = "inventory-status";
+
+        if (!hasForecast) {
+            statusLabel.textContent = "Forecast Unavailable";
+        } else if (stockGap > 0) {
+            statusLabel.textContent = "Potential Shortage";
+            statusLabel.classList.add("reorder-needed");
+        } else {
+            statusLabel.textContent = "Stock Covers Forecast";
+            statusLabel.classList.add("no-reorder");
+        }
+
+        statusCell.appendChild(statusLabel);
+        row.appendChild(statusCell);
+
+        forecastTableBody.appendChild(row);
+    }
+}
+
+async function loadDemandForecast() {
+    const historyDays = Number(forecastHistorySelect.value);
+    const forecastDays = Number(forecastHorizonSelect.value);
+
+    refreshForecastButton.disabled = true;
+    refreshForecastButton.textContent = "Loading...";
+
+    showForecastMessage("Loading demand forecast...");
+
+    try {
+        const response = await fetch(
+            `/analytics/demand-forecast?history_days=${historyDays}` +
+            `&forecast_days=${forecastDays}`,
+            {
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Unable to load forecast (HTTP ${response.status}).`
+            );
+        }
+
+        const products = await response.json();
+
+        if (!Array.isArray(products)) {
+            throw new Error("Unexpected forecast response.");
+        }
+
+        renderForecast(products);
+
+    } catch (error) {
+        console.error("Failed to load demand forecast:", error);
+
+        showForecastMessage(
+            "Unable to load forecast. Check the API connection."
+        );
+
+    } finally {
+        refreshForecastButton.disabled = false;
+        refreshForecastButton.textContent = "Refresh Forecast";
+    }
+}
+
+refreshForecastButton.addEventListener(
+    "click",
+    loadDemandForecast
+);
+
+forecastHistorySelect.addEventListener(
+    "change",
+    loadDemandForecast
+);
+
+forecastHorizonSelect.addEventListener(
+    "change",
+    loadDemandForecast
+);
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadDemandForecast
+);
