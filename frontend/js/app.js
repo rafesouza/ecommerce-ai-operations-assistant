@@ -985,3 +985,141 @@ async function saveProductChanges(event) {
 }
 
 productEditForm.addEventListener("submit", saveProductChanges);
+
+const inventoryTableBody = document.getElementById(
+    "inventory-table-body"
+);
+
+const inventoryPeriodSelect = document.getElementById(
+    "inventory-period"
+);
+
+const refreshInventoryButton = document.getElementById(
+    "refresh-inventory-button"
+);
+
+function showInventoryMessage(message) {
+    inventoryTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 9;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    inventoryTableBody.appendChild(row);
+}
+
+function renderInventory(products) {
+    inventoryTableBody.replaceChildren();
+
+    if (products.length === 0) {
+        showInventoryMessage("No inventory data available.");
+        return;
+    }
+
+    for (const product of products) {
+        const row = document.createElement("tr");
+
+        const values = [
+            product.sku,
+            product.name,
+            product.stock_quantity,
+            product.units_sold,
+            Number(product.average_daily_sales).toFixed(2),
+            product.lead_time_days,
+            product.safety_stock,
+            product.recommended_quantity
+        ];
+        for (const value of values) {
+            const cell = document.createElement("td");
+
+            cell.textContent = String(value ?? "—");
+            row.appendChild(cell);
+        }
+
+        const statusCell = document.createElement("td");
+        const statusLabel = document.createElement("span");
+
+        const stock = Number(product.stock_quantity);
+        const reorder = Number(product.recommended_quantity);
+
+        if (stock === 0) {
+            statusLabel.textContent = "Out of Stock";
+            statusLabel.className = "inventory-status out-of-stock";
+        } else if (reorder > 0) {
+            statusLabel.textContent = "Reorder Needed";
+            statusLabel.className = "inventory-status reorder-needed";
+        } else {
+            statusLabel.textContent = "No Reorder Needed";
+            statusLabel.className = "inventory-status no-reorder";
+        }
+
+        statusCell.appendChild(statusLabel);
+        row.appendChild(statusCell);
+
+        inventoryTableBody.appendChild(row);
+
+    }
+}
+
+async function loadInventory() {
+    const days = Number(inventoryPeriodSelect.value);
+
+    refreshInventoryButton.disabled = true;
+    refreshInventoryButton.textContent = "Loading...";
+
+    showInventoryMessage("Loading inventory data...");
+
+    try {
+        const response = await fetch(
+            `/inventory/replenishment?days=${days}`,
+            {
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Unable to load inventory (HTTP ${response.status}).`
+            );
+        }
+
+        const products = await response.json();
+
+        if (!Array.isArray(products)) {
+            throw new Error("Unexpected inventory response.");
+        }
+
+        renderInventory(products);
+
+    } catch (error) {
+        console.error("Failed to load inventory:", error);
+
+        showInventoryMessage(
+            "Unable to load inventory. Check the API connection."
+        );
+
+    } finally {
+        refreshInventoryButton.disabled = false;
+        refreshInventoryButton.textContent = "Refresh Inventory";
+    }
+}
+
+refreshInventoryButton.addEventListener(
+    "click",
+    loadInventory
+);
+
+inventoryPeriodSelect.addEventListener(
+    "change",
+    loadInventory
+);
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadInventory
+);
