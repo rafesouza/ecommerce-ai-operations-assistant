@@ -585,6 +585,102 @@ def get_analytics_summary(
     }
 
 # --------------------------------------------------
+# ANALYTICS - DEMAND FORECAST
+# --------------------------------------------------
+
+@app.get("/analytics/demand-forecast")
+def get_demand_forecast(
+    history_days: int = Query(default=30, ge=1, le=365),
+    forecast_days: int = Query(default=14, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    start_date = datetime.now(timezone.utc) - timedelta(
+        days=history_days
+    )
+
+    confirmed_sales = (
+        select(
+            OrderItem.product_id.label("product_id"),
+            func.sum(OrderItem.quantity).label("units_sold"),
+            func.count(func.distinct(Order.id)).label(
+                "confirmed_order_count"
+            ),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(
+            Order.status == "confirmed",
+            Order.created_at >= start_date,
+        )
+        .group_by(OrderItem.product_id)
+        .subquery()
+    )
+
+    statement = (
+        select(
+            Product.id,
+            Product.sku,
+            Product.name,
+            Product.stock_quantity,
+            func.coalesce(
+                confirmed_sales.c.units_sold, 0
+            ).label("units_sold"),
+            func.coalesce(
+                confirmed_sales.c.confirmed_order_count, 0
+            ).label("confirmed_order_count"),
+        )
+        .outerjoin(
+            confirmed_sales,
+            Product.id == confirmed_sales.c.product_id,
+        )
+        .order_by(Product.id)
+    )
+
+    rows = db.execute(statement).all()
+    results = []
+
+    for row in rows:
+        units_sold = int(row.units_sold)
+        confirmed_order_count = int(row.confirmed_order_count)
+
+        average_daily_sales = units_sold / history_days
+
+        forecast_quantity = max(
+            0,
+            math.ceil(average_daily_sales * forecast_days),
+        )
+
+        has_sales_history = confirmed_order_count > 0
+
+        results.append(
+            {
+                "product_id": row.id,
+                "sku": row.sku,
+                "name": row.name,
+                "stock_quantity": row.stock_quantity,
+                "history_days": history_days,
+                "forecast_days": forecast_days,
+                "units_sold": units_sold,
+                "confirmed_order_count": confirmed_order_count,
+                "average_daily_sales": round(
+                    average_daily_sales, 2
+                ),
+                "forecast_quantity": (
+                    forecast_quantity
+                    if has_sales_history
+                    else None
+                ),
+                "forecast_method": "historical_daily_average",
+                "data_status": (
+                    "sales_history_available"
+                    if has_sales_history
+                    else "no_confirmed_sales"
+                ),
+            }
+        )
+
+    return results
+
+# --------------------------------------------------
 # INVENTORY - STOCK ALERTS
 # --------------------------------------------------
 
