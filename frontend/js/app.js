@@ -1283,3 +1283,188 @@ document.addEventListener(
     "DOMContentLoaded",
     loadDemandForecast
 );
+
+/* -----------------------------------------------
+   FORECAST ACCURACY DASHBOARD
+----------------------------------------------- */
+
+const accuracyTableBody = document.getElementById(
+    "accuracy-table-body"
+);
+const accuracyHistorySelect = document.getElementById(
+    "accuracy-history-period"
+);
+const accuracyEvaluationSelect = document.getElementById(
+    "accuracy-evaluation-period"
+);
+const refreshAccuracyButton = document.getElementById(
+    "refresh-accuracy-button"
+);
+const accuracyMaeElement = document.getElementById(
+    "accuracy-mae"
+);
+const accuracyWapeElement = document.getElementById(
+    "accuracy-wape"
+);
+const accuracyEvaluatedElement = document.getElementById(
+    "accuracy-evaluated-products"
+);
+
+function showAccuracyMessage(message) {
+    accuracyTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 7;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    accuracyTableBody.appendChild(row);
+}
+
+function renderForecastAccuracy(data) {
+    accuracyTableBody.replaceChildren();
+
+    const metrics = data.metrics;
+
+    accuracyMaeElement.textContent = metrics
+        ? Number(metrics.mae).toFixed(2)
+        : "—";
+
+    accuracyWapeElement.textContent =
+        metrics && metrics.wape !== null
+            ? `${Number(metrics.wape).toFixed(2)}%`
+            : "—";
+
+    accuracyEvaluatedElement.textContent = metrics
+        ? String(metrics.observation_count)
+        : "0";
+
+    if (data.products.length === 0) {
+        showAccuracyMessage(
+            "No products available for accuracy evaluation."
+        );
+        return;
+    }
+
+    for (const product of data.products) {
+        const row = document.createElement("tr");
+
+        const values = [
+            product.sku,
+            product.name,
+            product.historical_units_sold,
+            product.actual_units_sold,
+            product.predicted_units_sold ?? "—",
+            product.absolute_error ?? "—"
+        ];
+
+        for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = String(value ?? "—");
+            row.appendChild(cell);
+        }
+
+        const statusCell = document.createElement("td");
+        const statusLabel = document.createElement("span");
+
+        statusLabel.className = "inventory-status";
+
+        if (product.data_status === "evaluated") {
+            statusLabel.textContent = "Evaluated";
+            statusLabel.classList.add("no-reorder");
+        } else {
+            statusLabel.textContent = "Insufficient History";
+        }
+
+        statusCell.appendChild(statusLabel);
+        row.appendChild(statusCell);
+        accuracyTableBody.appendChild(row);
+    }
+}
+
+async function loadForecastAccuracy() {
+    const historyDays = Number(
+        accuracyHistorySelect.value
+    );
+    const forecastDays = Number(
+        accuracyEvaluationSelect.value
+    );
+
+    refreshAccuracyButton.disabled = true;
+    refreshAccuracyButton.textContent = "Loading...";
+
+    accuracyMaeElement.textContent = "—";
+    accuracyWapeElement.textContent = "—";
+    accuracyEvaluatedElement.textContent = "—";
+
+    showAccuracyMessage(
+        "Loading forecast accuracy..."
+    );
+
+    try {
+        const response = await fetch(
+            `/analytics/forecast-accuracy?history_days=${historyDays}` +
+            `&forecast_days=${forecastDays}`,
+            {
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Unable to load accuracy (HTTP ${response.status}).`
+            );
+        }
+
+        const data = await response.json();
+
+        if (
+            !data ||
+            !Array.isArray(data.products)
+        ) {
+            throw new Error(
+                "Unexpected forecast accuracy response."
+            );
+        }
+
+        renderForecastAccuracy(data);
+
+    } catch (error) {
+        console.error(
+            "Failed to load forecast accuracy:",
+            error
+        );
+
+        showAccuracyMessage(
+            "Unable to load forecast accuracy. Check the API connection."
+        );
+    } finally {
+        refreshAccuracyButton.disabled = false;
+        refreshAccuracyButton.textContent =
+            "Refresh Accuracy";
+    }
+}
+
+refreshAccuracyButton.addEventListener(
+    "click",
+    loadForecastAccuracy
+);
+
+accuracyHistorySelect.addEventListener(
+    "change",
+    loadForecastAccuracy
+);
+
+accuracyEvaluationSelect.addEventListener(
+    "change",
+    loadForecastAccuracy
+);
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadForecastAccuracy
+);

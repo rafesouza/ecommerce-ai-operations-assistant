@@ -13,6 +13,7 @@ from backend.app.models import Order, OrderItem, Product, StockMovement, Supplie
 from pathlib import Path
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from backend.app.forecast_accuracy import calculate_forecast_accuracy
 from backend.app.marketplace_fee_catalog import (
     AMAZON_FR_CATALOG,
     get_catalog_for_date,
@@ -1164,4 +1165,142 @@ def get_marketplace_profitability(
         "fulfillment_fee": fulfillment_fee,
         "estimated_profit": estimated_profit,
         "estimated_margin_percent": estimated_margin_percent,
+    }
+
+# --------------------------------------------------
+# ANALYTICS - FORECAST ACCURACY BACKTESTING
+# --------------------------------------------------
+
+@app.get("/analytics/forecast-accuracy")
+def get_forecast_accuracy(
+    history_days: int = Query(default=30, ge=1, le=365),
+    forecast_days: int = Query(default=14, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    evaluation_end = datetime.now(timezone.utc)
+    evaluation_start = evaluation_end - timedelta(
+        days=forecast_days
+    )
+    history_start = evaluation_start - timedelta(
+        days=history_days
+    )
+
+    def get_sales_by_product(start_date, end_date):
+        statement = (
+            select(
+                OrderItem.product_id,
+                func.sum(OrderItem.quantity).label("units_sold"),
+                func.count(func.distinct(Order.id)).label(
+                    "order_count"
+                ),
+            )
+            .join(Order, OrderItem.order_id == Order.id)
+            .where(
+                Order.status == "confirmed",
+                Order.created_at >= start_date,
+                Order.created_at < end_date,
+            )
+            .group_by(OrderItem.product_id)
+        )
+
+        rows = db.execute(statement).all()
+
+        return {
+            row.product_id: {
+                "units_sold": int(row.units_sold),
+                "order_count": int(row.order_count),
+            }
+            for row in rows
+        }
+
+    historical_sales = get_sales_by_product(
+        history_start,
+        evaluation_start,
+    )
+
+    observed_sales = get_sales_by_product(
+        evaluation_start,
+        evaluation_end,
+    )
+
+    products = db.execute(
+        select(
+            Product.id,
+            Product.sku,
+            Product.name,
+        ).order_by(Product.id)
+    ).all()
+
+    results = []
+    actual_values = []
+    predicted_values = []
+
+    for product in products:
+        history = historical_sales.get(
+            product.id,
+            {"units_sold": 0, "order_count": 0},
+        )
+        observed = observed_sales.get(
+            product.id,
+            {"units_sold": 0, "order_count": 0},
+        )
+
+        history_units = history["units_sold"]
+        actual_units = observed["units_sold"]
+
+        has_history = history["order_count"] > 0
+
+        predicted_units = (
+            math.ceil(
+                (history_units / history_days) * forecast_days
+            )
+            if has_history
+            else None
+        )
+
+        absolute_error = (
+            abs(actual_units - predicted_units)
+            if predicted_units is not None
+            else None
+        )
+
+        if predicted_units is not None:
+            actual_values.append(actual_units)
+            predicted_values.append(predicted_units)
+
+        results.append(
+            {
+                "product_id": product.id,
+                "sku": product.sku,
+                "name": product.name,
+                "historical_units_sold": history_units,
+                "actual_units_sold": actual_units,
+                "predicted_units_sold": predicted_units,
+                "absolute_error": absolute_error,
+                "data_status": (
+                    "evaluated"
+                    if has_history
+                    else "insufficient_history"
+                ),
+            }
+        )
+
+    metrics = (
+        calculate_forecast_accuracy(
+            actual_values,
+            predicted_values,
+        )
+        if actual_values
+        else None
+    )
+
+    return {
+        "history_days": history_days,
+        "forecast_days": forecast_days,
+        "history_start": history_start,
+        "evaluation_start": evaluation_start,
+        "evaluation_end": evaluation_end,
+        "forecast_method": "historical_daily_average",
+        "metrics": metrics,
+        "products": results,
     }
