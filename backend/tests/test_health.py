@@ -16,4 +16,4 @@ def test_health_check():
 
     assert data["status"] == "ok"
     assert data["application"] == "E-commerce AI Operations Assistant"
-    assert data["version"] == "0.2.0"
+    assert data["version"] == "1.0.0"

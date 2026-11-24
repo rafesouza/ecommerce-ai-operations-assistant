@@ -37,7 +37,7 @@ from backend.app.schemas import (
 app = FastAPI(
     title="E-commerce AI Operations Assistant",
     description="API for e-commerce operations and AI integration.",
-    version="0.2.0",
+    version="1.0.0",
 )
 # Frontend configuration
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -61,7 +61,7 @@ def health_check():
     return {
         "status": "ok",
         "application": "E-commerce AI Operations Assistant",
-        "version": "0.2.0",
+        "version": "1.0.0",
     }
 
 
