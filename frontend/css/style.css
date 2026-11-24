@@ -410,3 +410,24 @@ tbody tr:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* -----------------------------------------------
+   MACHINE LEARNING MODEL COMPARISON METRICS
+----------------------------------------------- */
+
+#ml-model-comparison .ml-comparison-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin: 24px 0;
+}
+
+#ml-model-comparison .metric-card {
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    #ml-model-comparison .ml-comparison-metrics {
+        grid-template-columns: 1fr;
+    }
+}

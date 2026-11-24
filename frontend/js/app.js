@@ -1468,3 +1468,224 @@ document.addEventListener(
     "DOMContentLoaded",
     loadForecastAccuracy
 );
+
+/* -----------------------------------------------
+   MACHINE LEARNING MODEL COMPARISON
+----------------------------------------------- */
+
+const mlComparisonScenario = document.getElementById(
+    "ml-comparison-scenario"
+);
+const mlComparisonButton = document.getElementById(
+    "refresh-ml-comparison-button"
+);
+const mlComparisonTableBody = document.getElementById(
+    "ml-comparison-table-body"
+);
+const mlActualSales = document.getElementById(
+    "ml-actual-sales"
+);
+const mlBaselineMae = document.getElementById(
+    "ml-baseline-mae"
+);
+const mlRegressionMae = document.getElementById(
+    "ml-regression-mae"
+);
+const mlComparisonStatus = document.getElementById(
+    "ml-comparison-status"
+);
+
+function getMLDemoSales(scenario) {
+    if (scenario === "growth") {
+        return Array.from(
+            { length: 21 },
+            (_, index) => index + 1
+        );
+    }
+
+    if (scenario === "constant") {
+        return Array(21).fill(5);
+    }
+
+    if (scenario === "reversal") {
+        return [
+            ...Array.from(
+                { length: 14 },
+                (_, index) => index + 1
+            ),
+            ...Array(7).fill(5)
+        ];
+    }
+
+    throw new Error("Unknown demonstration scenario.");
+}
+
+function showMLComparisonMessage(message) {
+    mlComparisonTableBody.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    mlComparisonTableBody.appendChild(row);
+}
+
+function renderMLComparison(data) {
+    mlActualSales.textContent = String(
+        data.actual_total
+    );
+
+    mlBaselineMae.textContent = Number(
+        data.baseline.metrics.mae
+    ).toFixed(2);
+
+    mlRegressionMae.textContent = Number(
+        data.machine_learning.metrics.mae
+    ).toFixed(2);
+
+    mlComparisonTableBody.replaceChildren();
+
+    const models = [
+        {
+            name: "Historical Average",
+            result: data.baseline
+        },
+        {
+            name: "Linear Regression",
+            result: data.machine_learning
+        }
+    ];
+
+    for (const model of models) {
+        const row = document.createElement("tr");
+
+        const wape = model.result.metrics.wape;
+
+        const values = [
+            model.name,
+            model.result.forecast_quantity,
+            Number(model.result.metrics.mae).toFixed(2),
+            wape === null
+                ? "—"
+                : `${Number(wape).toFixed(2)}%`
+        ];
+
+        for (const value of values) {
+            const cell = document.createElement("td");
+            cell.textContent = String(value);
+            row.appendChild(cell);
+        }
+
+        mlComparisonTableBody.appendChild(row);
+    }
+
+    const baselineError = Number(
+        data.baseline.metrics.mae
+    );
+
+    const mlError = Number(
+        data.machine_learning.metrics.mae
+    );
+
+    if (mlError < baselineError) {
+        mlComparisonStatus.textContent =
+            "Linear Regression achieved a lower MAE " +
+            "in this synthetic demonstration.";
+    } else if (baselineError < mlError) {
+        mlComparisonStatus.textContent =
+            "Historical Average achieved a lower MAE " +
+            "in this synthetic demonstration.";
+    } else {
+        mlComparisonStatus.textContent =
+            "Both models achieved the same MAE " +
+            "in this synthetic demonstration.";
+    }
+}
+
+async function loadMLComparison() {
+    mlComparisonButton.disabled = true;
+    mlComparisonButton.textContent = "Running...";
+
+    mlActualSales.textContent = "—";
+    mlBaselineMae.textContent = "—";
+    mlRegressionMae.textContent = "—";
+
+    mlComparisonStatus.textContent =
+        "Running synthetic demonstration...";
+
+    showMLComparisonMessage(
+        "Calculating model comparison..."
+    );
+
+    try {
+        const sales = getMLDemoSales(
+            mlComparisonScenario.value
+        );
+
+        const response = await fetch(
+            "/analytics/ml-model-comparison",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({
+                    daily_sales: sales,
+                    evaluation_days: 7
+                })
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Model comparison failed (HTTP ${response.status}).`
+            );
+        }
+
+        const data = await response.json();
+
+        if (!data.baseline || !data.machine_learning) {
+            throw new Error(
+                "Unexpected model comparison response."
+            );
+        }
+
+        renderMLComparison(data);
+
+    } catch (error) {
+        console.error(
+            "Failed to compare ML models:",
+            error
+        );
+
+        mlComparisonStatus.textContent =
+            "Unable to calculate model comparison.";
+
+        showMLComparisonMessage(
+            "Check the API connection and try again."
+        );
+    } finally {
+        mlComparisonButton.disabled = false;
+        mlComparisonButton.textContent =
+            "Run Comparison";
+    }
+}
+
+mlComparisonButton.addEventListener(
+    "click",
+    loadMLComparison
+);
+
+mlComparisonScenario.addEventListener(
+    "change",
+    loadMLComparison
+);
+
+document.addEventListener(
+    "DOMContentLoaded",
+    loadMLComparison
+);

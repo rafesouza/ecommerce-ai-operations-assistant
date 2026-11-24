@@ -28,6 +28,7 @@
                 <a href="#inventory-intelligence">Inventory</a>
                 <a href="#demand-forecast">Demand Forecast</a>
                 <a href="#forecast-accuracy">Forecast Accuracy</a>
+                <a href="#ml-model-comparison">ML Model Comparison</a>
                 <a href="#orders-list">Orders</a>
                 <a href="#suppliers">Suppliers</a>
             </nav>
@@ -303,6 +304,89 @@
     </p>
 </section>
 
+<!-- Machine Learning Model Comparison -->
+<section class="content-section" id="ml-model-comparison">
+    <div class="section-header">
+        <div>
+            <h2>ML Model Comparison</h2>
+            <p>
+                Compare historical averages with linear regression
+                using synthetic demonstration data.
+            </p>
+        </div>
+
+        <button id="refresh-ml-comparison-button" type="button">
+            Run Comparison
+        </button>
+    </div>
+
+    <p class="forecast-note">
+        Demonstration only: this comparison uses synthetic
+        sales data, not actual marketplace transactions.
+    </p>
+
+    <div class="form-grid">
+        <div class="form-field">
+            <label for="ml-comparison-scenario">
+                Demonstration Scenario
+            </label>
+
+            <select id="ml-comparison-scenario">
+                <option value="growth">
+                    Linear Growth
+                </option>
+                <option value="constant">
+                    Constant Sales
+                </option>
+                <option value="reversal">
+                    Trend Reversal
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <div class="metrics-grid ml-comparison-metrics">
+        <div class="metric-card">
+            <h3>Actual Sales</h3>
+            <p id="ml-actual-sales">—</p>
+        </div>
+
+        <div class="metric-card">
+            <h3>Historical Average MAE</h3>
+            <p id="ml-baseline-mae">—</p>
+        </div>
+
+        <div class="metric-card">
+            <h3>Machine Learning MAE</h3>
+            <p id="ml-regression-mae">—</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Forecast Method</th>
+                    <th>Predicted Sales</th>
+                    <th>MAE</th>
+                    <th>WAPE</th>
+                </tr>
+            </thead>
+
+            <tbody id="ml-comparison-table-body">
+                <tr>
+                    <td colspan="4">
+                        Run a comparison to see model performance.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p id="ml-comparison-status" class="forecast-note">
+        No comparison has been executed yet.
+    </p>
+</section>
 <section class="content-section" id="products">
 
                 <div class="section-header">

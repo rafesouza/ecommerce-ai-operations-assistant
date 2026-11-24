@@ -128,3 +128,17 @@ class SupplierUpdate(BaseModel):
         ge=1,
         le=365,
     )
+
+class MLModelComparisonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    daily_sales: list[float] = Field(
+        min_length=15,
+        max_length=730,
+    )
+    evaluation_days: int = Field(
+        default=7,
+        ge=1,
+        le=365,
+        strict=True,
+    )
