@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone, date
 from fastapi import Query
+from backend.app.ml_model_comparison import compare_forecast_models
 from backend.app.database import get_db
 from backend.app.models import Order, OrderItem, Product, StockMovement, Supplier
 from pathlib import Path
@@ -21,6 +22,7 @@ from backend.app.marketplace_fee_catalog import (
 
 from backend.app.schemas import (
     OrderCreate,
+    MLModelComparisonRequest,
     OrderRead,
     OrderStatusUpdate,
     ProductCreate,
@@ -1304,3 +1306,22 @@ def get_forecast_accuracy(
         "metrics": metrics,
         "products": results,
     }
+
+# --------------------------------------------------
+# ANALYTICS - MACHINE LEARNING MODEL COMPARISON
+# --------------------------------------------------
+
+@app.post("/analytics/ml-model-comparison")
+def get_ml_model_comparison(
+    request: MLModelComparisonRequest,
+):
+    try:
+        return compare_forecast_models(
+            daily_sales=request.daily_sales,
+            evaluation_days=request.evaluation_days,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422,
+            detail=str(error),
+        ) from error
